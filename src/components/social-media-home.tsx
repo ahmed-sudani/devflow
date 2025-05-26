@@ -27,12 +27,14 @@ export default function SocialMediaHome({
   currentUser,
 }: HomePageProps) {
   const [posts, setPosts] = useState<PostWithUser[]>(initialPosts);
-  const [currentFilter, setCurrentFilter] = useState<"recent" | "following">(
-    "recent"
-  );
+  const [currentFilter, setCurrentFilter] = useState<
+    "recent" | "following" | "bookmarks"
+  >("recent");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFilterChange = async (filter: "recent" | "following") => {
+  const handleFilterChange = async (
+    filter: "recent" | "following" | "bookmarks"
+  ) => {
     if (filter === currentFilter) return;
 
     setCurrentFilter(filter);

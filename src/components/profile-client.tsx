@@ -13,15 +13,18 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { toggleUserFollowing } from "@/lib/actions/post"; // Existing action
-import { users, posts } from "@/db/schema";
+import { users } from "@/db/schema";
 import { PostsList } from "./posts-list";
 import { useLoginModal } from "@/hooks/use-login-modal";
 import { LoginModal } from "./login-modal";
 import Image from "next/image";
+import { PostWithUser } from "@/lib/fetchers/post";
 
 interface ProfileClientProps {
-  profileUser: typeof users.$inferSelect & { isFollowing: boolean };
-  userPosts: (typeof posts.$inferSelect & { isLiked: boolean })[];
+  profileUser: Omit<typeof users.$inferSelect, "emailVerified"> & {
+    isFollowing: boolean;
+  };
+  userPosts: PostWithUser[];
   isOwnProfile: boolean;
 }
 

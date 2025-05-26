@@ -30,7 +30,7 @@ export type PostWithUser = {
     image: string | null;
   };
   isLiked?: boolean;
-  isBookmarked?: boolean; // Add this line
+  isBookmarked?: boolean;
 };
 
 export type SuggestedUser = {

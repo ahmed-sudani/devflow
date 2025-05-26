@@ -5,19 +5,23 @@ import { getUserProfile } from "@/lib/fetchers/user"; // Need to create these
 import SessionProvider from "@/providers/session-provider";
 
 interface ProfilePageProps {
-  params: {
-    userId: string;
-  };
+  params: Promise<{ userId: string }>;
 }
 
-export default async function ProfilePage({ params }: ProfilePageProps) {
+export default async function ProfilePage(props: ProfilePageProps) {
   const session = await auth();
   const currentUser = session?.user;
+
+  const params = await props.params;
 
   const [profileUser, userPosts] = await Promise.all([
     getUserProfile(params.userId),
     getUserPosts(params.userId),
   ]);
+
+  if (!profileUser) {
+    return null;
+  }
 
   return (
     <SessionProvider session={session}>

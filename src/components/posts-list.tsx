@@ -1,4 +1,4 @@
-import { PostWithUser } from "@/lib/actions/post";
+import { PostWithUser } from "@/lib/fetchers/post";
 import { Post } from "./post";
 
 interface PostsListProps {
