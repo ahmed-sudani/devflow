@@ -42,7 +42,7 @@ export function Post({ post }: PostProps) {
   const [showComment, setShowComment] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [replyText, setReplyText] = useState("");
+  const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount);
@@ -58,7 +58,6 @@ export function Post({ post }: PostProps) {
     if (shareType === "copy") {
       try {
         await navigator.clipboard.writeText(postUrl);
-        // You might want to show a toast notification here
         console.log("Link copied to clipboard");
       } catch (error) {
         console.error("Failed to copy link:", error);
@@ -80,7 +79,6 @@ export function Post({ post }: PostProps) {
       window.open(facebookUrl, "_blank");
     }
 
-    // Increment share count
     const newSharesCount = sharesCount + 1;
     setSharesCount(newSharesCount);
     setShowShareMenu(false);
@@ -88,24 +86,19 @@ export function Post({ post }: PostProps) {
     startTransition(async () => {
       const result = await sharePost(post.id);
       if (!result.success) {
-        // Revert on error
         setSharesCount(sharesCount);
       }
     });
   };
 
-  // Add this handler function:
   const handleBookmark = () => {
     requireAuth("bookmark this post", () => {
       const newIsBookmarked = !isBookmarked;
-
-      // Optimistic update
       setIsBookmarked(newIsBookmarked);
 
       startTransition(async () => {
         const result = await togglePostBookmark(post.id);
         if (!result.success) {
-          // Revert on error
           setIsBookmarked(!newIsBookmarked);
         }
       });
@@ -117,14 +110,12 @@ export function Post({ post }: PostProps) {
       const newIsLiked = !isLiked;
       const newLikesCount = newIsLiked ? likesCount + 1 : likesCount - 1;
 
-      // Optimistic update
       setIsLiked(newIsLiked);
       setLikesCount(newLikesCount);
 
       startTransition(async () => {
         const result = await togglePostLike(post.id);
         if (!result.success) {
-          // Revert on error
           setIsLiked(!newIsLiked);
           setLikesCount(likesCount);
         }
@@ -147,7 +138,6 @@ export function Post({ post }: PostProps) {
         setCommentText("");
         setShowComment(false);
         setCommentsCount((prev) => prev + 1);
-        // Refresh comments if they're being shown
         if (showComments) {
           await fetchComments();
         }
@@ -156,15 +146,16 @@ export function Post({ post }: PostProps) {
   };
 
   const handleReply = (commentId: number) => {
-    if (!replyText.trim()) return;
+    const replyText = replyTexts[commentId];
+    if (!replyText?.trim()) return;
 
     startTransition(async () => {
       const result = await addComment(post.id, replyText, commentId);
       if (result.success) {
-        setReplyText("");
+        setReplyTexts((prev) => ({ ...prev, [commentId]: "" }));
         setReplyingTo(null);
         setCommentsCount((prev) => prev + 1);
-        await fetchComments(); // Refresh to show new reply
+        await fetchComments();
       }
     });
   };
@@ -173,7 +164,7 @@ export function Post({ post }: PostProps) {
     const result = await deleteComment(commentId);
     if (result.success) {
       setCommentsCount((prev) => prev - 1);
-      await fetchComments(); // Refresh comments
+      await fetchComments();
     }
   };
 
@@ -181,9 +172,7 @@ export function Post({ post }: PostProps) {
     setLoadingComments(true);
     try {
       const result = await getPostComments(post.id);
-      // if (result.success && result.comments) {
       setComments(result);
-      // }
     } catch (error) {
       console.error("Error fetching comments:", error);
     } finally {
@@ -198,17 +187,24 @@ export function Post({ post }: PostProps) {
     setShowComments(!showComments);
   };
 
+  const setReplyText = (commentId: number, text: string) => {
+    setReplyTexts((prev) => ({ ...prev, [commentId]: text }));
+  };
+
   const timeAgo = post.createdAt
     ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })
     : "";
 
-  const renderComment = (comment: PostComment, isReply = false) => {
+  const renderComment = (comment: PostComment, depth = 0) => {
     const commentTimeAgo = comment.createdAt
       ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
       : "";
 
+    const isReplying = replyingTo === comment.id;
+    const replyText = replyTexts[comment.id] || "";
+
     return (
-      <div key={comment.id} className={`${isReply ? "ml-12 mt-3" : "mt-4"}`}>
+      <div key={comment.id} className={`${depth > 0 ? "ml-8 mt-3" : "mt-4"}`}>
         <div className="flex space-x-3">
           <Image
             src={comment.user.image || "/default-avatar.png"}
@@ -221,7 +217,7 @@ export function Post({ post }: PostProps) {
             <div className="bg-bg-tertiary rounded-lg p-3">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center space-x-2">
-                  <span className="font-medium text-sm text-text-pri  mary">
+                  <span className="font-medium text-sm text-text-primary">
                     {comment.user.name}
                   </span>
                   <span className="text-xs text-text-secondary">
@@ -240,15 +236,16 @@ export function Post({ post }: PostProps) {
               <p className="text-sm text-text-primary">{comment.content}</p>
             </div>
 
-            {!isReply && (
+            {/* Reply button - only show for root comments and first level replies */}
+            {depth < 2 && (
               <div className="flex items-center mt-2 space-x-4">
                 <button
                   onClick={() => {
                     requireAuth("reply to this comment", () => {
-                      setReplyingTo(
-                        replyingTo === comment.id ? null : comment.id
-                      );
-                      setReplyText("");
+                      setReplyingTo(isReplying ? null : comment.id);
+                      if (!isReplying) {
+                        setReplyText(comment.id, "");
+                      }
                     });
                   }}
                   className="text-xs text-text-secondary hover:text-primary transition-colors flex items-center space-x-1"
@@ -260,7 +257,7 @@ export function Post({ post }: PostProps) {
             )}
 
             {/* Reply Input */}
-            {replyingTo === comment.id && (
+            {isReplying && (
               <div className="mt-3">
                 <div className="flex space-x-2">
                   <Image
@@ -273,7 +270,7 @@ export function Post({ post }: PostProps) {
                   <div className="flex-1">
                     <textarea
                       value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
+                      onChange={(e) => setReplyText(comment.id, e.target.value)}
                       placeholder={`Reply to ${comment.user.name}...`}
                       className="w-full p-2 text-sm bg-bg-secondary border border-border-secondary rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary placeholder-text-secondary"
                       rows={2}
@@ -282,7 +279,7 @@ export function Post({ post }: PostProps) {
                       <button
                         onClick={() => {
                           setReplyingTo(null);
-                          setReplyText("");
+                          setReplyText(comment.id, "");
                         }}
                         className="px-2 py-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
                       >
@@ -301,10 +298,12 @@ export function Post({ post }: PostProps) {
               </div>
             )}
 
-            {/* Render replies */}
+            {/* Render replies recursively */}
             {comment.replies && comment.replies.length > 0 && (
               <div className="mt-3">
-                {comment.replies.map((reply) => renderComment(reply, true))}
+                {comment.replies.map((reply) =>
+                  renderComment(reply, depth + 1)
+                )}
               </div>
             )}
           </div>
@@ -384,6 +383,7 @@ export function Post({ post }: PostProps) {
             <Image
               src={post.image}
               alt="Post content"
+              width={600}
               height={320}
               className="w-full h-80 object-cover"
             />
@@ -419,10 +419,6 @@ export function Post({ post }: PostProps) {
                 <span className="text-sm font-medium">{commentsCount}</span>
               </button>
 
-              {/* <button className="flex items-center space-x-2 text-text-secondary hover:text-status-success transition-colors group">
-                <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium">{post.sharesCount}</span>
-              </button> */}
               <div className="relative">
                 <button
                   onClick={() => setShowShareMenu(!showShareMenu)}
@@ -432,7 +428,6 @@ export function Post({ post }: PostProps) {
                   <span className="text-sm font-medium">{sharesCount}</span>
                 </button>
 
-                {/* Share Dropdown Menu */}
                 {showShareMenu && (
                   <div className="absolute bottom-full left-0 mb-2 bg-bg-secondary border border-border-primary rounded-lg shadow-lg py-2 min-w-[200px] z-10">
                     <button
@@ -460,9 +455,7 @@ export function Post({ post }: PostProps) {
                 )}
               </div>
             </div>
-            {/* <button className="text-text-secondary hover:text-accent transition-colors">
-              <Star className="w-5 h-5" />
-            </button> */}
+
             <button
               onClick={handleBookmark}
               disabled={isPending}

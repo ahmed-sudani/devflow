@@ -10,7 +10,7 @@ import {
   users,
 } from "@/db/schema";
 import { db } from "@/lib/db";
-import { and, desc, eq, gt, inArray, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, notInArray } from "drizzle-orm";
 
 export type PostWithUser = {
   id: number;
@@ -44,7 +44,8 @@ export type SuggestedUser = {
 export type PostComment = {
   id: number;
   content: string;
-  createdAt: Date | null;
+  createdAt: Date;
+  parentId: number | null;
   user: {
     id: string;
     name: string | null;
@@ -266,17 +267,17 @@ export async function getPostComments(postId: number): Promise<PostComment[]> {
       .from(postComments)
       .innerJoin(users, eq(postComments.userId, users.id))
       .where(eq(postComments.postId, postId))
-      .orderBy(desc(postComments.createdAt));
+      .orderBy(asc(postComments.createdAt)); // Changed to ascending for proper tree building
 
-    // Group comments by parent/child relationship
+    // First pass: Create all comment objects
     const commentMap = new Map<number, PostComment>();
-    const rootComments: PostComment[] = [];
 
     result.forEach((comment) => {
       const commentObj: PostComment = {
         id: comment.id,
         content: comment.content,
         createdAt: comment.createdAt,
+        parentId: comment.parentId,
         user: {
           id: comment.userId,
           name: comment.userName,
@@ -285,8 +286,14 @@ export async function getPostComments(postId: number): Promise<PostComment[]> {
         },
         replies: [],
       };
-
       commentMap.set(comment.id, commentObj);
+    });
+
+    // Second pass: Build the tree structure
+    const rootComments: PostComment[] = [];
+
+    result.forEach((comment) => {
+      const commentObj = commentMap.get(comment.id)!;
 
       if (comment.parentId) {
         const parent = commentMap.get(comment.parentId);
@@ -299,7 +306,11 @@ export async function getPostComments(postId: number): Promise<PostComment[]> {
       }
     });
 
-    return rootComments;
+    // Sort root comments by newest first, but keep replies in chronological order
+    return rootComments.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   } catch (error) {
     console.error("Error fetching comments:", error);
     return [];
