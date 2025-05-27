@@ -243,14 +243,14 @@ export async function seedDatabase() {
       console.log("✅ Updated follower counts");
     }
 
-    // Insert posts
+    // Insert posts (without commentsCount initially)
     console.log("📝 Creating posts...");
     const postsToInsert = samplePosts.map((post) => ({
       ...post,
       userId:
         insertedUsers[Math.floor(Math.random() * insertedUsers.length)].id,
       likesCount: Math.floor(Math.random() * 50),
-      commentsCount: Math.floor(Math.random() * 20),
+      commentsCount: 0, // Will be updated after comments are inserted
       sharesCount: Math.floor(Math.random() * 10),
     }));
 
@@ -340,6 +340,24 @@ export async function seedDatabase() {
         console.log(`✅ Created ${repliesToInsert.length} comment replies`);
       }
     }
+
+    // Update posts with accurate comment counts
+    console.log("🔄 Updating post comment counts...");
+    const allComments = [...commentsToInsert, ...repliesToInsert];
+
+    for (const post of insertedPosts) {
+      const actualCommentCount = allComments.filter(
+        (comment) => comment.postId === post.id
+      ).length;
+
+      await db
+        .update(posts)
+        .set({
+          commentsCount: actualCommentCount,
+        })
+        .where(eq(posts.id, post.id));
+    }
+    console.log("✅ Updated post comment counts");
 
     console.log("🎉 Database seeding completed successfully!");
     console.log("\n📊 Summary:");
