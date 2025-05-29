@@ -1,31 +1,61 @@
-import { Code, Settings, User, Zap } from "lucide-react";
+"use client";
+
+import { getTrendingTagsWithTimeframe } from "@/lib/fetchers/post";
+import { ApiResult, Timeframe, TrendingTag, User as UserType } from "@/types";
+import { Clock, Code, Settings, User, Zap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
-interface LeftSidebarProps {
-  currentUser: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    badge: string | null;
-    image: string | null;
-    followersCount: number;
-    followingCount: number;
-  } | null;
-}
-
-export const trendingTags = [
-  "#javascript",
-  "#python",
-  "#react",
-  "#nodejs",
-  "#docker",
-  "#kubernetes",
-  "#aws",
-  "#typescript",
+const timeframeOptions = [
+  { value: "day" as Timeframe, label: "24h", icon: "🔥" },
+  { value: "week" as Timeframe, label: "7d", icon: "📈" },
+  { value: "month" as Timeframe, label: "30d", icon: "📊" },
 ];
 
-export function LeftSidebar({ currentUser }: LeftSidebarProps) {
+export function LeftSidebar({
+  initialTrendingTags,
+  currentUser,
+}: {
+  initialTrendingTags: ApiResult<TrendingTag>;
+  currentUser: UserType | null;
+}) {
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>("day");
+  const [trendingTags, setTrendingTags] = useState<TrendingTag[]>(
+    initialTrendingTags.success ? initialTrendingTags.data : []
+  );
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleTimeframeChange = async (timeframe: Timeframe) => {
+    setSelectedTimeframe(timeframe);
+
+    if (timeframe === "day") {
+      if (initialTrendingTags.success) {
+        setTrendingTags(initialTrendingTags.data);
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await getTrendingTagsWithTimeframe(timeframe, 3);
+      if (result.success) {
+        setTrendingTags(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching trending tags:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatCount = (count: number) => {
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}k`;
+    }
+    return count.toString();
+  };
+
   return (
     <div className="hidden lg:block">
       <div className="sticky top-24 space-y-6">
@@ -82,19 +112,70 @@ export function LeftSidebar({ currentUser }: LeftSidebarProps) {
 
         {/* Trending Tags */}
         <div className="bg-bg-secondary rounded-lg p-6 border border-border-primary shadow-md">
-          <h3 className="font-semibold text-text-primary mb-4 flex items-center">
-            <Zap className="w-4 h-4 mr-2 text-yellow-400" />
-            Trending Tags
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {trendingTags.map((tag, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-bg-tertiary text-secondary rounded-sm text-sm hover:bg-bg-quaternary cursor-pointer transition-colors"
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-text-primary flex items-center">
+              <Zap className="w-4 h-4 mr-2 text-yellow-400" />
+              Trending Tags
+            </h3>
+            <Clock className="w-4 h-4 text-text-secondary" />
+          </div>
+
+          {/* Timeframe Filter */}
+          <div className="flex space-x-1 mb-4 bg-bg-tertiary rounded-md p-1">
+            {timeframeOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleTimeframeChange(option.value)}
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                  selectedTimeframe === option.value
+                    ? "bg-bg-primary text-text-primary shadow-sm"
+                    : "text-text-secondary hover:text-text-primary hover:bg-bg-quaternary"
+                }`}
               >
-                {tag}
-              </span>
+                <span>{option.icon}</span>
+                <span>{option.label}</span>
+              </button>
             ))}
+          </div>
+
+          {/* Tags List */}
+          <div className="space-y-2">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-text-secondary"></div>
+              </div>
+            ) : trendingTags.length > 0 ? (
+              trendingTags.map((trendingTag, index) => (
+                <div
+                  key={`${trendingTag.tag}-${index}`}
+                  className="flex items-center justify-between p-2 hover:bg-bg-tertiary rounded-md cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-text-secondary font-mono">
+                      #{index + 1}
+                    </span>
+                    <span className="text-sm text-text-primary group-hover:text-status-info transition-colors">
+                      {trendingTag.tag}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-text-secondary bg-bg-quaternary px-2 py-0.5 rounded-full">
+                      {formatCount(trendingTag.count)}
+                    </span>
+                    {trendingTag.avgEngagement &&
+                      Number(trendingTag.avgEngagement) > 0 && (
+                        <span className="text-xs text-status-success">
+                          {Number(trendingTag.avgEngagement).toFixed(1)} avg
+                        </span>
+                      )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-text-secondary text-sm text-center py-4">
+                No trending tags found
+              </p>
+            )}
           </div>
         </div>
 
