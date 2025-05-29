@@ -2,17 +2,31 @@
 
 import { auth } from "@/auth";
 import {
+  followers,
   postBookmarks,
   postComments,
   postLikes,
   posts,
   users,
 } from "@/db/schema";
+
 import { db } from "@/lib/db";
-import { and, asc, eq, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { PostWithUser } from "@/types";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNotNull,
+  or,
+  sql,
+} from "drizzle-orm";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export interface CreatePostInput {
+  codeLanguage: string;
   content: string;
   codeSnippet?: string;
   image?: string;
@@ -43,12 +57,13 @@ export async function createPost(input: CreatePostInput) {
         userId: session.user.id,
         content: input.content.trim(),
         codeSnippet: input.codeSnippet?.trim() || null,
+        codeLanguage: input.codeSnippet?.trim() ? input.codeLanguage : null,
         image: input.image || null,
-        tags: input.tags,
+        tags: input.tags?.filter((tag) => tag.trim() !== "") || [],
       })
       .returning();
 
-    revalidatePath("/");
+    revalidateTag("posts");
 
     return {
       success: true,
@@ -283,8 +298,6 @@ export async function getPostComments(postId: number) {
   }
 }
 
-import { followers } from "@/db/schema";
-
 export async function toggleUserFollowing(targetUserId: string) {
   try {
     const session = await auth();
@@ -433,3 +446,311 @@ export async function togglePostBookmark(postId: number) {
 
 type Comment = typeof postComments.$inferSelect;
 type CommentWithReplies = Comment & { replies: CommentWithReplies[] };
+
+export interface SearchFilters {
+  type: "all" | "users" | "posts" | "tags";
+  sortBy: "relevance" | "recent" | "popular";
+  dateRange: "all" | "day" | "week" | "month" | "year";
+  userId?: string;
+  tags?: string[];
+}
+
+export interface SearchResult<T> {
+  success: boolean;
+  data: T[];
+  error?: string;
+  total?: number;
+  hasMore?: boolean;
+}
+
+// Define the User type for search results
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  username: string;
+  image: string | null;
+  badge: string | null;
+  followersCount: number;
+  followingCount: number;
+  createdAt: Date;
+}
+
+export type PostFilterOptions = {
+  userId?: string; // only posts by this user
+  limit?: number; // how many posts to return
+  offset?: number; // pagination
+  isBookmarked?: boolean; // only bookmarked by current user?
+  isFollowing?: boolean; // only from people you follow?
+  tags?: string[]; // must match at least one tag
+  sortBy?: "relevance" | "recent" | "popular";
+  dateRange?: "all" | "day" | "week" | "month" | "year";
+  searchTerm?: string; // (optional) text to search in content/snippet
+};
+
+// Enhanced user search with filters
+export async function searchUsers(
+  query: string,
+  limit: number = 10,
+  offset: number = 0,
+  filters: Partial<SearchFilters> = {}
+): Promise<SearchResult<UserSearchResult>> {
+  if (!query || query.trim().length < 2) {
+    return {
+      success: false,
+      error: "Search query must be at least 2 characters long",
+      data: [],
+    };
+  }
+
+  const searchTerm = `%${query.trim()}%`;
+
+  try {
+    // Build the base query
+    const baseQuery = db
+      .select({
+        id: users.id,
+        name: users.name,
+        username: users.username,
+        image: users.image,
+        badge: users.badge,
+        followersCount: users.followersCount,
+        followingCount: users.followingCount,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(
+        or(
+          ilike(users.name, searchTerm),
+          ilike(users.username, searchTerm),
+          ilike(users.badge, searchTerm)
+        )
+      );
+
+    // Apply sorting and execute query
+    let results;
+    switch (filters.sortBy) {
+      case "recent":
+        results = await baseQuery
+          .orderBy(desc(users.createdAt))
+          .limit(limit)
+          .offset(offset);
+        break;
+      case "popular":
+        results = await baseQuery
+          .orderBy(desc(users.followersCount), asc(users.name))
+          .limit(limit)
+          .offset(offset);
+        break;
+      default:
+        results = await baseQuery
+          .orderBy(desc(users.followersCount), asc(users.name))
+          .limit(limit)
+          .offset(offset);
+    }
+
+    // Get total count for pagination
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(
+        or(
+          ilike(users.name, searchTerm),
+          ilike(users.username, searchTerm),
+          ilike(users.badge, searchTerm)
+        )
+      );
+
+    const total = totalResult[0]?.count || 0;
+
+    return {
+      success: true,
+      data: results,
+      total,
+      hasMore: offset + limit < total,
+    };
+  } catch (error) {
+    console.error("Error searching users:", error);
+    return {
+      success: false,
+      error: "Failed to search users",
+      data: [],
+    };
+  }
+}
+
+export async function getPosts(
+  opts: PostFilterOptions = {}
+): Promise<PostWithUser[]> {
+  // 1) Auth
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+  const {
+    userId,
+    limit = 50,
+    offset = 0,
+    isBookmarked,
+    isFollowing,
+    tags,
+    sortBy = "recent",
+    dateRange = "all",
+    searchTerm,
+  } = opts;
+
+  // 2) Base select + joins for user + interaction flags
+  let q;
+  q = db
+    .select({
+      id: posts.id,
+      content: posts.content,
+      codeSnippet: posts.codeSnippet,
+      codeLanguage: posts.codeLanguage,
+      image: posts.image,
+      tags: posts.tags,
+      likesCount: posts.likesCount,
+      commentsCount: posts.commentsCount,
+      sharesCount: posts.sharesCount,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      userId: posts.userId,
+      userName: users.name,
+      userUsername: users.username,
+      userBadge: users.badge,
+      userImage: users.image,
+      isLiked: sql<boolean>`post_likes.user_id IS NOT NULL`.as("isLiked"),
+      isBookmarked: sql<boolean>`post_bookmarks.user_id IS NOT NULL`.as(
+        "isBookmarked"
+      ),
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.userId, users.id))
+    .leftJoin(
+      postLikes,
+      and(
+        eq(postLikes.postId, posts.id),
+        eq(postLikes.userId, currentUserId ?? "")
+      )
+    )
+    .leftJoin(
+      postBookmarks,
+      and(
+        eq(postBookmarks.postId, posts.id),
+        eq(postBookmarks.userId, currentUserId ?? "")
+      )
+    );
+
+  // 3) Add followers join if needed
+  if (isFollowing) {
+    if (!currentUserId) return [];
+    q = q.leftJoin(
+      followers,
+      and(
+        eq(followers.followerId, currentUserId),
+        eq(followers.followingId, posts.userId)
+      )
+    );
+  }
+
+  // 4) Build where conditions array
+  const whereConditions = [];
+
+  // Filter by "only my bookmarks"
+  if (isBookmarked) {
+    if (!currentUserId) return [];
+    whereConditions.push(isNotNull(postBookmarks.userId));
+  }
+
+  // Filter by "only from people I follow"
+  if (isFollowing) {
+    whereConditions.push(isNotNull(followers.followingId));
+  }
+
+  // Filter by a specific user's posts
+  if (userId) {
+    whereConditions.push(eq(posts.userId, userId));
+  }
+
+  // Filter by tags overlap
+  if (tags && tags.length > 0) {
+    const tagsArray = `{${tags.join(",")}}`;
+    whereConditions.push(sql`${posts.tags} && ${tagsArray}`);
+  }
+
+  // Full-text search (if provided)
+  if (searchTerm && searchTerm.trim().length >= 2) {
+    const term = `%${searchTerm.trim()}%`;
+    whereConditions.push(
+      or(
+        ilike(posts.content, term),
+        ilike(posts.codeSnippet, term),
+        sql`EXISTS (
+          SELECT 1 FROM unnest(${posts.tags}) AS tag WHERE tag ILIKE ${term}
+        )`
+      )
+    );
+  }
+
+  // Date range filter
+  if (dateRange !== "all") {
+    const now = Date.now();
+    const msIn = {
+      day: 86400_000,
+      week: 7 * 86400_000,
+      month: 30 * 86400_000,
+      year: 365 * 86400_000,
+    } as const;
+    const threshold = new Date(now - msIn[dateRange]);
+    whereConditions.push(gte(posts.createdAt, threshold));
+  }
+
+  // 5) Apply all where conditions at once
+  if (whereConditions.length > 0) {
+    q = q.where(and(...whereConditions));
+  }
+
+  // 6) Sorting
+  switch (sortBy) {
+    case "recent":
+      q = q.orderBy(desc(posts.createdAt));
+      break;
+    case "popular":
+      q = q.orderBy(desc(posts.likesCount), desc(posts.createdAt));
+      break;
+    case "relevance":
+      if (searchTerm && searchTerm.trim().length >= 2) {
+        // If you have a full-text index, replace this with ts_rank or similarity()
+        q = q.orderBy(desc(posts.likesCount), desc(posts.createdAt));
+      } else {
+        // fallback
+        q = q.orderBy(desc(posts.createdAt));
+      }
+      break;
+  }
+
+  // 7) Pagination
+  q = q.limit(limit).offset(offset);
+
+  // 8) Execute + map to PostWithUser
+  const rows = await q;
+  return rows.map((r) => ({
+    id: r.id,
+    content: r.content,
+    codeSnippet: r.codeSnippet,
+    codeLanguage: r.codeLanguage,
+    image: r.image,
+    tags: r.tags,
+    likesCount: r.likesCount ?? 0,
+    commentsCount: r.commentsCount ?? 0,
+    sharesCount: r.sharesCount ?? 0,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    user: {
+      id: r.userId,
+      name: r.userName,
+      username: r.userUsername,
+      badge: r.userBadge,
+      image: r.userImage,
+    },
+    isLiked: r.isLiked,
+    isBookmarked: r.isBookmarked,
+  }));
+}
