@@ -4,6 +4,7 @@ import { extractRouterConfig } from "uploadthing/server";
 import Header from "@/components/header"; // Adjust path if needed
 import { ourFileRouter } from "@/lib/uploadthing";
 import "./globals.css";
+import { ToastContainer } from "react-toastify";
 // import { auth } from "@/auth";
 // import SessionProvider from "@/providers/session-provider";
 
@@ -17,13 +18,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-900 text-gray-100">
         <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
         <Header />
         <main>{children}</main>
+        <div id="menu-root" />
+        <ToastContainer />
       </body>
     </html>
   );
