@@ -21,13 +21,15 @@ import {
   togglePostBookmark,
 } from "@/lib/actions/post";
 import { getPostComments } from "@/lib/fetchers/post";
-import { PostWithUser, PostComment } from "@/lib/fetchers/post";
+import { PostComment } from "@/lib/fetchers/post";
 import { useLoginModal } from "@/hooks/use-login-modal";
 import { useSession } from "next-auth/react";
 import { LoginModal } from "./login-modal";
 import Link from "next/link";
 import { Link as LinkIcon, Twitter, Facebook } from "lucide-react";
 import Image from "next/image";
+import CodePreview from "./code-preview";
+import { PostWithUser } from "@/types";
 
 interface PostProps {
   post: PostWithUser;
@@ -53,7 +55,7 @@ export function Post({ post }: PostProps) {
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
 
   const handleShare = async (shareType: "copy" | "twitter" | "facebook") => {
-    const postUrl = `${window.location.origin}/post/${post.id}`;
+    const postUrl = `${window.location.origin}/posts/${post.id}`;
 
     if (shareType === "copy") {
       try {
@@ -355,11 +357,7 @@ export function Post({ post }: PostProps) {
 
           {/* Code Snippet */}
           {post.codeSnippet && (
-            <div className="bg-bg-primary rounded-md p-4 mb-3 border border-border-secondary">
-              <pre className="text-sm text-status-success overflow-x-auto">
-                <code>{post.codeSnippet}</code>
-              </pre>
-            </div>
+            <CodePreview code={post.codeSnippet} language={post.codeLanguage} />
           )}
 
           {/* Tags */}

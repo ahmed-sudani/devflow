@@ -1,20 +1,23 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { X, Image as ImageIcon, Code, Hash, Loader2, Plus } from "lucide-react";
 import Image from "next/image";
 import { UploadButton } from "@/lib/uploadthing-components";
 import { createPost, CreatePostInput } from "@/lib/actions/post";
+import CodeEditor from "./code-editor";
 
 export default function NewPostModal() {
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState<CreatePostInput>({
     content: "",
     codeSnippet: "",
+    codeLanguage: "javascript",
     image: "",
     tags: [],
   });
+
   const [showCodeEditor, setShowCodeEditor] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
@@ -35,7 +38,13 @@ export default function NewPostModal() {
       });
 
       if (result.success) {
-        setFormData({ content: "", codeSnippet: "", image: "", tags: [] });
+        setFormData({
+          content: "",
+          codeSnippet: "",
+          codeLanguage: "javascript",
+          image: "",
+          tags: [],
+        });
         setShowCodeEditor(false);
         setTagInput("");
         document.getElementById("close-dialog-btn")?.click();
@@ -69,18 +78,26 @@ export default function NewPostModal() {
     }
   };
 
+  const handleCodeChange = useCallback((code: string, language: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      codeSnippet: code,
+      codeLanguage: language,
+    }));
+  }, []);
+
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
         <button className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all transform hover:scale-105 flex items-center">
           <Plus className="w-4 h-4 mr-2" />
-          New Post
+          Post
         </button>
       </Dialog.Trigger>
 
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-lg sm:max-w-2xl max-h-[90vh] overflow-y-auto transform -translate-x-1/2 -translate-y-1/2 rounded-lg bg-bg-secondary p-4 sm:p-6 border border-border-primary focus:outline-none">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-full max-w-lg sm:max-w-4xl max-h-[90vh] overflow-y-auto transform -translate-x-1/2 -translate-y-1/2 rounded-lg bg-bg-secondary p-4 sm:p-6 border border-border-primary focus:outline-none">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-border-primary">
             <Dialog.Title className="text-lg sm:text-xl font-semibold text-text-primary">
@@ -105,7 +122,7 @@ export default function NewPostModal() {
                 maxLength={2000}
               />
               <div className="flex justify-between mt-2 text-xs text-text-secondary">
-                {formData.content.length}/2000 characters
+                <span>{formData.content.length}/2000 characters</span>
               </div>
             </div>
 
@@ -114,17 +131,13 @@ export default function NewPostModal() {
                 <label className="block text-sm font-medium text-text-primary mb-2">
                   Code Snippet (Optional)
                 </label>
-                <textarea
-                  value={formData.codeSnippet}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      codeSnippet: e.target.value,
-                    }))
-                  }
-                  placeholder="// Share your code here..."
-                  className="w-full p-3 bg-bg-primary border border-border-secondary rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-status-success placeholder-text-secondary font-mono text-sm min-h-[100px]"
-                />
+                <CodeEditor onChange={handleCodeChange} />
+                {formData.codeSnippet && (
+                  <div className="mt-2 text-xs text-text-secondary">
+                    Language: {formData.codeLanguage} • Characters:{" "}
+                    {formData.codeSnippet.length}
+                  </div>
+                )}
               </div>
             )}
 
@@ -230,7 +243,11 @@ export default function NewPostModal() {
                 <button
                   type="button"
                   onClick={() => setShowCodeEditor(!showCodeEditor)}
-                  className="flex items-center gap-2 px-3 py-2 border border-border-secondary text-text-secondary hover:text-text-primary hover:border-primary rounded-lg text-sm"
+                  className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                    showCodeEditor
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-border-secondary text-text-secondary hover:text-text-primary hover:border-primary"
+                  }`}
                 >
                   <Code className="w-4 h-4" />
                   Code
