@@ -1,36 +1,42 @@
 "use client";
 
-import { PostWithUser, SuggestedUser, getPosts } from "@/lib/fetchers/post";
-import { useState } from "react";
+import { getPosts } from "@/lib/actions/post";
+import {
+  ApiResult,
+  PostWithUser,
+  SuggestedUser,
+  TrendingTag,
+  User,
+} from "@/types";
+import { useEffect, useState } from "react";
 import { LeftSidebar } from "./left-side-bar";
+import Loader from "./loader";
 import { PostFilter } from "./posts-filter";
 import { PostsList } from "./posts-list";
 import { RightSidebar } from "./right-side-bar";
 
 interface HomePageProps {
   initialPosts: PostWithUser[];
+  initialTrendingTags: ApiResult<TrendingTag>;
+  currentUser: User | null;
   initialSuggestedUsers: SuggestedUser[];
-  currentUser: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    badge: string | null;
-    image: string | null;
-    followersCount: number;
-    followingCount: number;
-  } | null;
 }
+
+export const dynamic = "force-dynamic";
 
 export default function SocialMediaHome({
   initialPosts,
-  initialSuggestedUsers,
+  initialTrendingTags,
   currentUser,
+  initialSuggestedUsers,
 }: HomePageProps) {
   const [posts, setPosts] = useState<PostWithUser[]>(initialPosts);
   const [currentFilter, setCurrentFilter] = useState<
     "recent" | "following" | "bookmarks"
   >("recent");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => setPosts(initialPosts), [initialPosts]);
 
   const handleFilterChange = async (
     filter: "recent" | "following" | "bookmarks"
@@ -41,7 +47,11 @@ export default function SocialMediaHome({
     setIsLoading(true);
 
     try {
-      const newPosts = await getPosts(filter);
+      const newPosts = await getPosts({
+        sortBy: "recent",
+        isFollowing: filter == "following",
+        isBookmarked: filter == "bookmarks",
+      });
       setPosts(newPosts);
     } catch (error) {
       console.error("Error fetching posts:", error);
@@ -54,7 +64,10 @@ export default function SocialMediaHome({
     <div className="pt-16 max-w-6xl mx-auto px-4">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 py-6">
         {/* Left Sidebar */}
-        <LeftSidebar currentUser={currentUser} />
+        <LeftSidebar
+          initialTrendingTags={initialTrendingTags}
+          currentUser={currentUser}
+        />
 
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
@@ -62,18 +75,11 @@ export default function SocialMediaHome({
             currentFilter={currentFilter}
             onFilterChange={handleFilterChange}
           />
-
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <PostsList posts={posts} />
-          )}
+          {isLoading ? <Loader /> : <PostsList posts={posts} />}
         </div>
 
         {/* Right Sidebar */}
-        <RightSidebar suggestedUsers={initialSuggestedUsers} />
+        <RightSidebar initialSuggestedUsers={initialSuggestedUsers} />
       </div>
     </div>
   );

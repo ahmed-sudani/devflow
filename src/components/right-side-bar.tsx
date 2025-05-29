@@ -1,22 +1,48 @@
 "use client";
 
-import { Coffee } from "lucide-react";
-import { LoginModal } from "./login-modal";
-import { useLoginModal } from "@/hooks/use-login-modal";
-import { SuggestedUser } from "@/lib/fetchers/post";
-import { toggleUserFollowing } from "@/lib/actions/post";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import { Coffee } from "lucide-react";
+import { toast } from "react-toastify";
+import { useLoginModal } from "@/hooks/use-login-modal";
+import { SuggestedUser } from "@/types";
+import { getSuggestedUsers } from "@/lib/fetchers/post";
+import { toggleUserFollowing } from "@/lib/actions/post";
+import { LoginModal } from "./login-modal";
 
 interface RightSidebarProps {
-  suggestedUsers: SuggestedUser[];
+  initialSuggestedUsers: SuggestedUser[];
 }
 
-export function RightSidebar({ suggestedUsers }: RightSidebarProps) {
+export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
   const { isOpen, action, requireAuth, closeModal } = useLoginModal();
+
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>(
+    initialSuggestedUsers
+  );
   const [userFollowState, setUserFollowState] = useState<
     Record<string, boolean>
-  >(() => Object.fromEntries(suggestedUsers.map((user) => [user.id, false])));
+  >({});
+  const [dismissingUsers, setDismissingUsers] = useState<Set<string>>(
+    new Set()
+  );
+
+  useEffect(() => {
+    const fetchSuggestedUsers = async () => {
+      try {
+        const users = await getSuggestedUsers();
+        setSuggestedUsers(users);
+        setUserFollowState(
+          Object.fromEntries(users.map((user) => [user.id, false]))
+        );
+      } catch (err) {
+        console.error("Failed to fetch suggested users:", err);
+        toast.error("Failed to load suggested users");
+      }
+    };
+
+    fetchSuggestedUsers();
+  }, []);
 
   const handleFollow = async (userId: string, userName: string) => {
     requireAuth(`follow @${userName}`, async () => {
@@ -24,15 +50,57 @@ export function RightSidebar({ suggestedUsers }: RightSidebarProps) {
         const result = await toggleUserFollowing(userId);
 
         if (result.success) {
+          const isFollowing = !!result.following;
+
+          // Update follow state
           setUserFollowState((prev) => ({
             ...prev,
-            [userId]: !!result.following,
+            [userId]: isFollowing,
           }));
+
+          // Show toast notification
+          if (isFollowing) {
+            toast.success(`You are now following @${userName}`, {
+              position: "top-right",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+
+            // Mark user as dismissing and remove from list after 4 seconds
+            setDismissingUsers((prev) => new Set(prev).add(userId));
+
+            setTimeout(() => {
+              setSuggestedUsers((prev) =>
+                prev.filter((user) => user.id !== userId)
+              );
+              setDismissingUsers((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(userId);
+                return newSet;
+              });
+            }, 4000);
+          } else {
+            toast.info(`You unfollowed @${userName}`, {
+              position: "top-right",
+              autoClose: 2000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
+          }
         } else {
           console.error(result.error);
+          toast.error(`Failed to to perform action on @${userName}`);
         }
       } catch (err) {
         console.error("Follow action failed", err);
+        toast.error(
+          `An error occurred while trying to ${userFollowState[userId] ? "unfollow" : "follow"} @${userName}`
+        );
       }
     });
   };
@@ -50,7 +118,11 @@ export function RightSidebar({ suggestedUsers }: RightSidebarProps) {
               {suggestedUsers.map((suggestion) => (
                 <div
                   key={suggestion.id}
-                  className="flex items-center justify-between"
+                  className={`flex items-center justify-between transition-all duration-300 ${
+                    dismissingUsers.has(suggestion.id)
+                      ? "opacity-50 scale-95"
+                      : "opacity-100 scale-100"
+                  }`}
                 >
                   <div className="flex items-center space-x-md">
                     <Image
@@ -75,6 +147,7 @@ export function RightSidebar({ suggestedUsers }: RightSidebarProps) {
                     </div>
                   </div>
                   <button
+                    disabled={dismissingUsers.has(suggestion.id)}
                     onClick={() =>
                       handleFollow(suggestion.id, suggestion.username || "user")
                     }
@@ -82,9 +155,13 @@ export function RightSidebar({ suggestedUsers }: RightSidebarProps) {
                       userFollowState[suggestion.id]
                         ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
                         : "bg-primary text-white hover:bg-primary-dark"
-                    } px-3 py-1.5 rounded-md text-sm font-medium transition-colors`}
+                    } px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {userFollowState[suggestion.id] ? "Unfollow" : "Follow"}
+                    {dismissingUsers.has(suggestion.id)
+                      ? "Following..."
+                      : userFollowState[suggestion.id]
+                        ? "Unfollow"
+                        : "Follow"}
                   </button>
                 </div>
               ))}
