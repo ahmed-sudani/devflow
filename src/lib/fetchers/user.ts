@@ -11,7 +11,7 @@ export async function getCurrentUser() {
       return null;
     }
 
-    const user = await db
+    const [user] = await db
       .select({
         id: users.id,
         name: users.name,
@@ -21,12 +21,13 @@ export async function getCurrentUser() {
         image: users.image,
         followersCount: users.followersCount,
         followingCount: users.followingCount,
+        createdAt: users.createdAt,
       })
       .from(users)
       .where(eq(users.id, session.user.id))
       .limit(1);
 
-    return user[0] || null;
+    return user || null;
   } catch (error) {
     console.error("Error fetching current user:", error);
     return null;
@@ -44,7 +45,6 @@ export async function getUserProfile(userId: string) {
         id: users.id,
         name: users.name,
         username: users.username,
-        email: users.email,
         badge: users.badge,
         image: users.image,
         followersCount: users.followersCount,
