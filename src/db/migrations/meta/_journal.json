@@ -29,6 +29,20 @@
       "when": 1748321130710,
       "tag": "0003_supreme_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1748363013059,
+      "tag": "0004_legal_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1748546647071,
+      "tag": "0005_abnormal_arclight",
+      "breakpoints": true
     }
   ]
 }

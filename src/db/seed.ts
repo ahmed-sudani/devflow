@@ -71,6 +71,7 @@ export async function GET() {
   const users = await db.select().from(usersTable);
   return Response.json(users);
 }`,
+    codeLanguage: "typescript",
     tags: ["nextjs", "postgresql", "drizzle", "fullstack"],
   },
   {
@@ -90,6 +91,7 @@ export async function GET() {
 export const Button = ({ variant = 'primary', size = 'md', children, ...props }: ButtonProps) => {
   return <button className={\`btn btn-\${variant} btn-\${size}\`} {...props}>{children}</button>;
 };`,
+    codeLanguage: "typescript",
     tags: ["react", "components", "ui", "library"],
   },
   {
@@ -111,6 +113,7 @@ async function UserProfile({ userId }: { userId: string }) {
     </div>
   );
 }`,
+    codeLanguage: "typescript",
     tags: ["react", "server-components", "performance"],
   },
   {
@@ -132,6 +135,7 @@ export default NextAuth({
     })
   ]
 })`,
+    codeLanguage: "typescript",
     tags: ["auth", "nextauth", "security"],
   },
   {
@@ -148,6 +152,7 @@ const config = await import('./config.json', { assert: { type: 'json' } });
 // Temporal API (when it arrives)
 const now = Temporal.Now.plainDateTimeISO();
 const tomorrow = now.add({ days: 1 });`,
+    codeLanguage: "javascript",
     tags: ["javascript", "es2024", "temporal", "features"],
   },
   {
@@ -165,6 +170,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 EXPOSE 3000
 CMD ["npm", "start"]`,
+    codeLanguage: "dockerfile",
     tags: ["docker", "optimization", "devops"],
   },
 ];

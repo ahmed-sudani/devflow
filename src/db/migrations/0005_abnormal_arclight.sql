@@ -1,0 +1,1 @@
+ALTER TABLE "posts" ALTER COLUMN "shares_count" SET NOT NULL;

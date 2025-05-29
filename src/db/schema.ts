@@ -118,11 +118,12 @@ export const posts = pgTable("posts", {
     .references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   codeSnippet: text("code_snippet"),
+  codeLanguage: text("code_language"),
   image: text("image"), // UploadThing URL
   tags: text("tags").array(), // Array of strings
   likesCount: integer("likes_count").notNull().default(0),
   commentsCount: integer("comments_count").notNull().default(0),
-  sharesCount: integer("shares_count").default(0),
+  sharesCount: integer("shares_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -248,5 +249,5 @@ export type Database = {
   posts: typeof posts;
   postLikes: typeof postLikes;
   postComments: typeof postComments;
-  postBookmarks: typeof postBookmarks; // Add this line
+  postBookmarks: typeof postBookmarks;
 };
