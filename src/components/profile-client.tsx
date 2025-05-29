@@ -1,27 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useLoginModal } from "@/hooks/use-login-modal";
+import { toggleUserFollowing } from "@/lib/actions/post"; // Existing action
+import { PostWithUser, User as UserType } from "@/types";
 import { format } from "date-fns";
 import {
-  User,
   Calendar,
-  Settings,
   Code,
-  UserPlus,
-  UserMinus,
   MoreHorizontal,
+  Settings,
+  User,
+  UserMinus,
+  UserPlus,
 } from "lucide-react";
-import { toggleUserFollowing } from "@/lib/actions/post"; // Existing action
-import { users } from "@/db/schema";
-import { PostsList } from "./posts-list";
-import { useLoginModal } from "@/hooks/use-login-modal";
-import { LoginModal } from "./login-modal";
 import Image from "next/image";
-import { PostWithUser } from "@/lib/fetchers/post";
+import Link from "next/link";
+import { useState } from "react";
+import { LoginModal } from "./login-modal";
+import { PostsList } from "./posts-list";
 
 interface ProfileClientProps {
-  profileUser: Omit<typeof users.$inferSelect, "emailVerified"> & {
+  profileUser: UserType & {
     isFollowing: boolean;
   };
   userPosts: PostWithUser[];
