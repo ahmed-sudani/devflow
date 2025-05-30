@@ -146,7 +146,8 @@ export function LeftSidebar({
               </div>
             ) : trendingTags.length > 0 ? (
               trendingTags.map((trendingTag, index) => (
-                <div
+                <Link
+                  href={`/search/?q=${trendingTag.tag}&type=tags`}
                   key={`${trendingTag.tag}-${index}`}
                   className="flex items-center justify-between p-2 hover:bg-bg-tertiary rounded-md cursor-pointer transition-colors group"
                 >
@@ -169,7 +170,7 @@ export function LeftSidebar({
                         </span>
                       )}
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <p className="text-text-secondary text-sm text-center py-4">
