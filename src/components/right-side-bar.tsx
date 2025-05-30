@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import { Coffee } from "lucide-react";
-import { toast } from "react-toastify";
 import { useLoginModal } from "@/hooks/use-login-modal";
-import { SuggestedUser } from "@/types";
-import { getSuggestedUsers } from "@/lib/fetchers/post";
 import { toggleUserFollowing } from "@/lib/actions/post";
+import { SuggestedUser } from "@/types";
+import { CheckCircle, Coffee } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { toast } from "react-toastify";
 import { LoginModal } from "./login-modal";
 
 interface RightSidebarProps {
@@ -23,26 +22,6 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
   const [userFollowState, setUserFollowState] = useState<
     Record<string, boolean>
   >({});
-  const [dismissingUsers, setDismissingUsers] = useState<Set<string>>(
-    new Set()
-  );
-
-  useEffect(() => {
-    const fetchSuggestedUsers = async () => {
-      try {
-        const users = await getSuggestedUsers();
-        setSuggestedUsers(users);
-        setUserFollowState(
-          Object.fromEntries(users.map((user) => [user.id, false]))
-        );
-      } catch (err) {
-        console.error("Failed to fetch suggested users:", err);
-        toast.error("Failed to load suggested users");
-      }
-    };
-
-    fetchSuggestedUsers();
-  }, []);
 
   const handleFollow = async (userId: string, userName: string) => {
     requireAuth(`follow @${userName}`, async () => {
@@ -52,55 +31,42 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
         if (result.success) {
           const isFollowing = !!result.following;
 
+          // Show toast message
+          toast.success(
+            isFollowing
+              ? `You followed @${userName}`
+              : `You unfollowed @${userName}`,
+            {
+              autoClose: 3000,
+              theme: "dark",
+              className:
+                "bg-bg-secondary rounded-lg border border-border-primary text-text-primary",
+              progressClassName: "bg-primary",
+              icon() {
+                return <CheckCircle className="text-primary" />;
+              },
+              onClose() {
+                // If followed, remove from list after 3 seconds
+                if (isFollowing) {
+                  setSuggestedUsers((prev) =>
+                    prev.filter((user) => user.id !== userId)
+                  );
+                }
+              },
+            }
+          );
+
           // Update follow state
           setUserFollowState((prev) => ({
             ...prev,
             [userId]: isFollowing,
           }));
-
-          // Show toast notification
-          if (isFollowing) {
-            toast.success(`You are now following @${userName}`, {
-              position: "top-right",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-
-            // Mark user as dismissing and remove from list after 4 seconds
-            setDismissingUsers((prev) => new Set(prev).add(userId));
-
-            setTimeout(() => {
-              setSuggestedUsers((prev) =>
-                prev.filter((user) => user.id !== userId)
-              );
-              setDismissingUsers((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(userId);
-                return newSet;
-              });
-            }, 4000);
-          } else {
-            toast.info(`You unfollowed @${userName}`, {
-              position: "top-right",
-              autoClose: 2000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-          }
         } else {
-          console.error(result.error);
-          toast.error(`Failed to to perform action on @${userName}`);
+          toast.error(result.error || "Action failed");
         }
       } catch (err) {
         console.error("Follow action failed", err);
-        toast.error(
-          `An error occurred while trying to ${userFollowState[userId] ? "unfollow" : "follow"} @${userName}`
-        );
+        toast.error("Something went wrong");
       }
     });
   };
@@ -118,11 +84,7 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
               {suggestedUsers.map((suggestion) => (
                 <div
                   key={suggestion.id}
-                  className={`flex items-center justify-between transition-all duration-300 ${
-                    dismissingUsers.has(suggestion.id)
-                      ? "opacity-50 scale-95"
-                      : "opacity-100 scale-100"
-                  }`}
+                  className="flex items-center justify-between"
                 >
                   <div className="flex items-center space-x-md">
                     <Image
@@ -147,7 +109,6 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
                     </div>
                   </div>
                   <button
-                    disabled={dismissingUsers.has(suggestion.id)}
                     onClick={() =>
                       handleFollow(suggestion.id, suggestion.username || "user")
                     }
@@ -155,13 +116,9 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
                       userFollowState[suggestion.id]
                         ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
                         : "bg-primary text-white hover:bg-primary-dark"
-                    } px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    } px-3 py-1.5 rounded-md text-sm font-medium transition-colors`}
                   >
-                    {dismissingUsers.has(suggestion.id)
-                      ? "Following..."
-                      : userFollowState[suggestion.id]
-                        ? "Unfollow"
-                        : "Follow"}
+                    {userFollowState[suggestion.id] ? "Unfollow" : "Follow"}
                   </button>
                 </div>
               ))}
