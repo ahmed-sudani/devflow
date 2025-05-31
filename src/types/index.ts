@@ -42,8 +42,11 @@ export type PostWithUser = Post & {
 };
 
 // Comment with user and replies
-export type CommentWithUser = PostComment & {
-  user: User;
+export type CommentWithUser = Omit<
+  PostComment,
+  "userId" | "postId" | "updatedAt"
+> & {
+  user: Pick<User, "id" | "name" | "username" | "image">;
   replies: CommentWithUser[];
 };
 
