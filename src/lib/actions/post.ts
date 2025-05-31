@@ -19,6 +19,7 @@ import {
   eq,
   gte,
   ilike,
+  inArray,
   isNotNull,
   or,
   sql,
@@ -79,6 +80,75 @@ export async function createPost(input: CreatePostInput) {
   }
 }
 
+type UpdatePostInput = {
+  postId: number;
+  content: string;
+  codeSnippet?: string;
+  codeLanguage?: string | null;
+  image?: string | null;
+  tags?: string[];
+};
+
+export async function updatePost(input: UpdatePostInput) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new Error("You must be logged in to update a post");
+    }
+
+    // Validate input
+    if (!input.content.trim()) {
+      throw new Error("Post content is required");
+    }
+
+    if (input.content.length > 2000) {
+      throw new Error("Post content must be less than 2000 characters");
+    }
+
+    // Fetch post to verify ownership
+    const [existingPost] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, input.postId));
+
+    if (!existingPost) {
+      throw new Error("Post not found");
+    }
+
+    if (existingPost.userId !== session.user.id) {
+      throw new Error("You are not authorized to update this post");
+    }
+
+    // Perform update
+    const updatedPost = await db
+      .update(posts)
+      .set({
+        content: input.content.trim(),
+        codeSnippet: input.codeSnippet?.trim() || null,
+        codeLanguage: input.codeSnippet?.trim() ? input.codeLanguage : null,
+        image: input.image || null,
+        tags: input.tags?.filter((tag) => tag.trim() !== "") || [],
+      })
+      .where(eq(posts.id, input.postId))
+      .returning();
+
+    revalidateTag("posts");
+
+    return {
+      success: true,
+      post: updatedPost[0],
+      message: "Post updated successfully!",
+    };
+  } catch (error) {
+    console.error("Error updating post:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update post",
+    };
+  }
+}
+
 export async function deletePost(postId: number) {
   try {
     const session = await auth();
@@ -88,10 +158,10 @@ export async function deletePost(postId: number) {
     }
 
     // Check if user owns the post
-    const existingPost = await db.query.posts.findFirst({
-      where: (posts, { eq, and }) =>
-        and(eq(posts.id, postId), eq(posts.userId, session.user!.id!)),
-    });
+    const [existingPost] = await db
+      .select({})
+      .from(posts)
+      .where(and(eq(posts.id, postId), eq(posts.userId, session.user!.id!)));
 
     if (!existingPost) {
       throw new Error(
@@ -159,7 +229,6 @@ export async function togglePostLike(postId: number) {
         .where(eq(posts.id, postId));
     }
 
-    revalidatePath("/");
     return { success: true };
   } catch (error) {
     console.error("Error toggling like:", error);
@@ -236,19 +305,51 @@ export async function deleteComment(commentId: number) {
 
     const postId = comment[0].postId;
 
-    // Delete the comment
+    // Recursive function to get all child comment IDs
+    async function getAllChildCommentIds(parentId: number): Promise<number[]> {
+      const children = await db
+        .select({ id: postComments.id })
+        .from(postComments)
+        .where(eq(postComments.parentId, parentId));
+
+      let allChildIds: number[] = [];
+
+      for (const child of children) {
+        allChildIds.push(child.id);
+        // Recursively get children of this child
+        const grandChildren = await getAllChildCommentIds(child.id);
+        allChildIds = allChildIds.concat(grandChildren);
+      }
+
+      return allChildIds;
+    }
+
+    // Get all child comment IDs
+    const childCommentIds = await getAllChildCommentIds(commentId);
+
+    // Calculate total comments to delete (parent + children)
+    const totalCommentsToDelete = 1 + childCommentIds.length;
+
+    // Delete all child comments first
+    if (childCommentIds.length > 0) {
+      await db
+        .delete(postComments)
+        .where(inArray(postComments.id, childCommentIds));
+    }
+
+    // Delete the parent comment
     await db.delete(postComments).where(eq(postComments.id, commentId));
 
-    // Update comments count
+    // Update comments count (subtract total deleted comments)
     await db
       .update(posts)
       .set({
-        commentsCount: sql`${posts.commentsCount} - 1`,
+        commentsCount: sql`${posts.commentsCount} - ${totalCommentsToDelete}`,
       })
       .where(eq(posts.id, postId));
 
     revalidatePath("/");
-    return { success: true };
+    return { success: true, deletedCount: totalCommentsToDelete };
   } catch (error) {
     console.error("Error deleting comment:", error);
     return { success: false, error: "Failed to delete comment" };
