@@ -190,14 +190,16 @@ export function LeftSidebar({
               <Link href={`/profile/${currentUser.id}`}>
                 <button className="w-full flex items-center space-x-md p-md rounded-md hover:bg-bg-tertiary transition-colors text-left">
                   <User className="w-5 h-5 text-text-secondary" />
-                  <span className="text-text-tertiary">View Profile</span>
+                  <span className="text-text-tertiary text-sm">
+                    View Profile
+                  </span>
                 </button>
               </Link>
 
               <Link href="/settings">
                 <button className="w-full flex items-center space-x-md p-md rounded-md hover:bg-bg-tertiary transition-colors text-left">
                   <Settings className="w-5 h-5 text-text-secondary" />
-                  <span className="text-text-tertiary">Settings</span>
+                  <span className="text-text-tertiary text-sm">Settings</span>
                 </button>
               </Link>
             </div>
