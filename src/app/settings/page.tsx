@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import SettingsClient from "@/components/settings-client";
 import { getCurrentUser } from "@/lib/fetchers/user";
+import { getUserSettings } from "@/lib/actions/user";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -10,11 +11,16 @@ export default async function SettingsPage() {
     redirect("/");
   }
 
-  const currentUser = await getCurrentUser();
+  const [currentUser, userSettings] = await Promise.all([
+    getCurrentUser(),
+    getUserSettings(session.user.id!),
+  ]);
 
   if (!currentUser) {
     redirect("/");
   }
 
-  return <SettingsClient currentUser={currentUser} />;
+  return (
+    <SettingsClient userSettings={userSettings} currentUser={currentUser} />
+  );
 }

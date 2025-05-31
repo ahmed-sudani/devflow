@@ -2,7 +2,7 @@ import NextAuth, { NextAuthConfig } from "next-auth";
 import GithubProvider from "next-auth/providers/github";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
-import { accounts, sessions, users } from "./db/schema";
+import { accounts, sessions, users, userSettings } from "./db/schema";
 
 export const authOptions: NextAuthConfig = {
   adapter: DrizzleAdapter(db, {
@@ -36,6 +36,25 @@ export const authOptions: NextAuthConfig = {
   },
   pages: {
     signIn: "/auth/signin",
+  },
+  events: {
+    createUser: async ({ user }) => {
+      if (!user.id) {
+        console.error("User ID is missing, cannot create default settings");
+        return;
+      }
+
+      // Create default user settings when a new user is created
+      try {
+        await db.insert(userSettings).values({
+          userId: user.id!,
+          // All other fields will use their default values from the schema
+        });
+        console.log(`Default settings created for user: ${user.id}`);
+      } catch (error) {
+        console.error("Error creating default user settings:", error);
+      }
+    },
   },
 };
 

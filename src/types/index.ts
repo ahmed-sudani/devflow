@@ -71,3 +71,27 @@ export interface TrendingTag {
   count: number;
   avgEngagement?: number;
 }
+
+export interface ProfileFormData {
+  name: string;
+  username: string;
+  email: string;
+  badge: string;
+  image: string;
+}
+
+export interface PrivacySettings {
+  profileVisibility: "public" | "private";
+  showEmail: boolean;
+  showFollowers: boolean;
+  allowMessages: boolean;
+}
+
+export interface NotificationSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  likeNotifications: boolean;
+  commentNotifications: boolean;
+  followNotifications: boolean;
+  mentionNotifications: boolean;
+}

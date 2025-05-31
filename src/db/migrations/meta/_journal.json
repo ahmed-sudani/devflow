@@ -43,6 +43,13 @@
       "when": 1748546647071,
       "tag": "0005_abnormal_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1748672624291,
+      "tag": "0006_demonic_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

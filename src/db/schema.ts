@@ -1,11 +1,11 @@
 import {
   boolean,
-  timestamp,
-  pgTable,
-  text,
-  primaryKey,
   integer,
+  pgTable,
+  primaryKey,
   serial,
+  text,
+  timestamp,
 } from "drizzle-orm/pg-core";
 
 import { relations } from "drizzle-orm";
@@ -24,6 +24,41 @@ export const users = pgTable("user", {
   followersCount: integer("followers_count").notNull().default(0),
   followingCount: integer("following_count").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const userSettings = pgTable("user_settings", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  // Privacy Settings
+  profileVisibility: text("profile_visibility", {
+    enum: ["public", "private"],
+  })
+    .notNull()
+    .default("public"),
+  showEmail: boolean("show_email").notNull().default(false),
+  showFollowers: boolean("show_followers").notNull().default(true),
+  allowMessages: boolean("allow_messages").notNull().default(true),
+
+  // Notification Settings
+  emailNotifications: boolean("email_notifications").notNull().default(true),
+  pushNotifications: boolean("push_notifications").notNull().default(true),
+  likeNotifications: boolean("like_notifications").notNull().default(true),
+  commentNotifications: boolean("comment_notifications")
+    .notNull()
+    .default(true),
+  followNotifications: boolean("follow_notifications").notNull().default(true),
+  mentionNotifications: boolean("mention_notifications")
+    .notNull()
+    .default(true),
+
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
 export const accounts = pgTable(

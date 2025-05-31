@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
-  User,
-  Settings,
-  Shield,
-  Bell,
-  Trash2,
-  Save,
-  Upload,
-  X,
-} from "lucide-react";
+  updateNotificationSettings,
+  updatePrivacySettings,
+  updateUserProfile,
+} from "@/lib/actions/user";
+import {
+  ProfileFormData,
+  PrivacySettings,
+  NotificationSettings,
+} from "@/types";
+import { Bell, Save, Shield, Upload, User, X } from "lucide-react";
 import Image from "next/image";
+import { useState, useTransition } from "react";
 
 interface CurrentUser {
   id: string;
@@ -25,20 +25,37 @@ interface CurrentUser {
   followingCount: number;
 }
 
-interface SettingsClientProps {
-  currentUser: CurrentUser;
+interface UserSettings {
+  profileVisibility: "public" | "private";
+  showEmail: boolean;
+  showFollowers: boolean;
+  allowMessages: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  likeNotifications: boolean;
+  commentNotifications: boolean;
+  followNotifications: boolean;
+  mentionNotifications: boolean;
 }
 
-type Tab = "profile" | "account" | "privacy" | "notifications";
+interface SettingsClientProps {
+  currentUser: CurrentUser;
+  userSettings: UserSettings;
+}
 
-export default function SettingsClient({ currentUser }: SettingsClientProps) {
+type Tab = "profile" | "privacy" | "notifications";
+
+export default function SettingsClient({
+  currentUser,
+  userSettings,
+}: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [isPending, startTransition] = useTransition();
   const [savedMessage, setSavedMessage] = useState("");
-  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Profile form state
-  const [profileForm, setProfileForm] = useState({
+  const [profileForm, setProfileForm] = useState<ProfileFormData>({
     name: currentUser.name || "",
     username: currentUser.username || "",
     email: currentUser.email || "",
@@ -46,139 +63,103 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
     image: currentUser.image || "",
   });
 
-  // Account form state
-  const [accountForm, setAccountForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
   // Privacy settings state
-  const [privacySettings, setPrivacySettings] = useState({
-    profileVisibility: "public" as "public" | "private",
-    showEmail: false,
-    showFollowers: true,
-    allowMessages: true,
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>({
+    profileVisibility: userSettings.profileVisibility,
+    showEmail: userSettings.showEmail,
+    showFollowers: userSettings.showFollowers,
+    allowMessages: userSettings.allowMessages,
   });
 
   // Notification settings state
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    likeNotifications: true,
-    commentNotifications: true,
-    followNotifications: true,
-    mentionNotifications: true,
-  });
+  const [notificationSettings, setNotificationSettings] =
+    useState<NotificationSettings>({
+      emailNotifications: userSettings.emailNotifications,
+      pushNotifications: userSettings.pushNotifications,
+      likeNotifications: userSettings.likeNotifications,
+      commentNotifications: userSettings.commentNotifications,
+      followNotifications: userSettings.followNotifications,
+      mentionNotifications: userSettings.mentionNotifications,
+    });
+
+  const clearMessages = () => {
+    setSavedMessage("");
+    setErrorMessage("");
+  };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearMessages();
 
     startTransition(async () => {
       try {
-        // TODO: Create updateUserProfile action
-        // const result = await updateUserProfile(profileForm);
+        const result = await updateUserProfile(profileForm);
 
-        // Mock success for now
-        setSavedMessage("Profile updated successfully!");
-        setTimeout(() => setSavedMessage(""), 3000);
-
-        console.log("Profile form:", profileForm);
+        if (result.success) {
+          setSavedMessage(result.message || "Profile updated successfully!");
+          setTimeout(() => setSavedMessage(""), 3000);
+        } else {
+          setErrorMessage(result.error || "Failed to update profile");
+          setTimeout(() => setErrorMessage(""), 5000);
+        }
       } catch (error) {
         console.error("Error updating profile:", error);
-      }
-    });
-  };
-
-  const handleAccountSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (accountForm.newPassword !== accountForm.confirmPassword) {
-      alert("Passwords don't match!");
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        // TODO: Create updatePassword action
-        // const result = await updatePassword(accountForm.currentPassword, accountForm.newPassword);
-
-        setSavedMessage("Password updated successfully!");
-        setTimeout(() => setSavedMessage(""), 3000);
-
-        setAccountForm({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-      } catch (error) {
-        console.error("Error updating password:", error);
+        setErrorMessage("An unexpected error occurred");
+        setTimeout(() => setErrorMessage(""), 5000);
       }
     });
   };
 
   const handlePrivacySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearMessages();
 
     startTransition(async () => {
       try {
-        // TODO: Create updatePrivacySettings action
-        // const result = await updatePrivacySettings(privacySettings);
+        const result = await updatePrivacySettings(privacySettings);
 
-        setSavedMessage("Privacy settings updated!");
-        setTimeout(() => setSavedMessage(""), 3000);
-
-        console.log("Privacy settings:", privacySettings);
+        if (result.success) {
+          setSavedMessage(result.message || "Privacy settings updated!");
+          setTimeout(() => setSavedMessage(""), 3000);
+        } else {
+          setErrorMessage(result.error || "Failed to update privacy settings");
+          setTimeout(() => setErrorMessage(""), 5000);
+        }
       } catch (error) {
         console.error("Error updating privacy settings:", error);
+        setErrorMessage("An unexpected error occurred");
+        setTimeout(() => setErrorMessage(""), 5000);
       }
     });
   };
 
   const handleNotificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearMessages();
 
     startTransition(async () => {
       try {
-        // TODO: Create updateNotificationSettings action
-        // const result = await updateNotificationSettings(notificationSettings);
+        const result = await updateNotificationSettings(notificationSettings);
 
-        setSavedMessage("Notification settings updated!");
-        setTimeout(() => setSavedMessage(""), 3000);
-
-        console.log("Notification settings:", notificationSettings);
+        if (result.success) {
+          setSavedMessage(result.message || "Notification settings updated!");
+          setTimeout(() => setSavedMessage(""), 3000);
+        } else {
+          setErrorMessage(
+            result.error || "Failed to update notification settings"
+          );
+          setTimeout(() => setErrorMessage(""), 5000);
+        }
       } catch (error) {
         console.error("Error updating notification settings:", error);
+        setErrorMessage("An unexpected error occurred");
+        setTimeout(() => setErrorMessage(""), 5000);
       }
     });
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete your account? This action cannot be undone."
-    );
-
-    if (confirmed) {
-      const doubleConfirm = window.confirm(
-        "This will permanently delete all your posts, comments, and account data. Are you absolutely sure?"
-      );
-
-      if (doubleConfirm) {
-        try {
-          // TODO: Create deleteAccount action
-          // await deleteAccount();
-          console.log("Account deletion requested");
-          router.push("/");
-        } catch (error) {
-          console.error("Error deleting account:", error);
-        }
-      }
-    }
-  };
-
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
-    { id: "account", label: "Account", icon: Settings },
     { id: "privacy", label: "Privacy", icon: Shield },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
@@ -216,10 +197,21 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
 
         {/* Main Content */}
         <div className="flex-1">
+          {/* Success Message */}
           {savedMessage && (
             <div className="bg-status-success/20 border border-status-success text-status-success px-4 py-3 rounded-md mb-6 flex items-center justify-between">
               <span>{savedMessage}</span>
               <button onClick={() => setSavedMessage("")}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-status-error/20 border border-status-error text-status-error px-4 py-3 rounded-md mb-6 flex items-center justify-between">
+              <span>{errorMessage}</span>
+              <button onClick={() => setErrorMessage("")}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -240,7 +232,7 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
                   </label>
                   <div className="flex items-center space-x-4">
                     <Image
-                      src={profileForm.image}
+                      src={profileForm.image || "/default-avatar.png"}
                       alt="Profile"
                       width={64}
                       height={64}
@@ -269,6 +261,7 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
                     }
                     className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
                     placeholder="Your display name"
+                    required
                   />
                 </div>
 
@@ -288,6 +281,7 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
                     }
                     className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
                     placeholder="Your username"
+                    required
                   />
                 </div>
 
@@ -312,27 +306,14 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
                   <label className="block text-sm font-medium text-text-primary mb-2">
                     Professional Badge
                   </label>
-                  <select
+                  <input
                     value={profileForm.badge}
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, badge: e.target.value })
                     }
                     className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
-                  >
-                    <option value="">No Badge</option>
-                    <option value="Junior Developer">Junior Developer</option>
-                    <option value="Senior Developer">Senior Developer</option>
-                    <option value="Lead Developer">Lead Developer</option>
-                    <option value="Architect">Architect</option>
-                    <option value="DevOps Engineer">DevOps Engineer</option>
-                    <option value="Full Stack Developer">
-                      Full Stack Developer
-                    </option>
-                    <option value="Product Manager">Product Manager</option>
-                    <option value="UI/UX Designer">UI/UX Designer</option>
-                    <option value="Data Scientist">Data Scientist</option>
-                    <option value="QA Engineer">QA Engineer</option>
-                  </select>
+                    placeholder="Your badge"
+                  />
                 </div>
 
                 <button
@@ -344,110 +325,6 @@ export default function SettingsClient({ currentUser }: SettingsClientProps) {
                   <span>{isPending ? "Saving..." : "Save Profile"}</span>
                 </button>
               </form>
-            </div>
-          )}
-
-          {/* Account Tab */}
-          {activeTab === "account" && (
-            <div className="bg-bg-secondary rounded-lg border border-border-primary p-6 shadow-md">
-              <h3 className="text-xl font-semibold text-text-primary mb-6">
-                Account Settings
-              </h3>
-
-              <form onSubmit={handleAccountSubmit} className="space-y-6">
-                {/* Current Password */}
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={accountForm.currentPassword}
-                    onChange={(e) =>
-                      setAccountForm({
-                        ...accountForm,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
-                    placeholder="Enter current password"
-                  />
-                </div>
-
-                {/* New Password */}
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={accountForm.newPassword}
-                    onChange={(e) =>
-                      setAccountForm({
-                        ...accountForm,
-                        newPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
-                    placeholder="Enter new password"
-                  />
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={accountForm.confirmPassword}
-                    onChange={(e) =>
-                      setAccountForm({
-                        ...accountForm,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-bg-tertiary border border-border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-text-primary"
-                    placeholder="Confirm new password"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="flex items-center space-x-2 px-6 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{isPending ? "Updating..." : "Update Password"}</span>
-                </button>
-              </form>
-
-              {/* Danger Zone */}
-              <div className="mt-8 pt-6 border-t border-border-primary">
-                <h4 className="text-lg font-semibold text-status-error mb-4">
-                  Danger Zone
-                </h4>
-                <div className="bg-status-error/10 border border-status-error/20 rounded-md p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h5 className="font-medium text-text-primary mb-1">
-                        Delete Account
-                      </h5>
-                      <p className="text-sm text-text-secondary">
-                        Once you delete your account, there is no going back.
-                        Please be certain.
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleDeleteAccount}
-                      className="flex items-center space-x-2 px-4 py-2 bg-status-error text-white rounded-md hover:bg-status-error/80 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete Account</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
