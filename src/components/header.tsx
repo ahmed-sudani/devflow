@@ -1,7 +1,7 @@
-import { Terminal, Home, Bell, Mail, Search } from "lucide-react";
+import { Terminal, Home, Bell, Mail, Search, Plus } from "lucide-react";
 import SignIn from "./signin";
 import Image from "next/image";
-import NewPostModal from "./new-post-modal";
+import NewPostModal from "./post-modal";
 import { auth } from "@/auth";
 import Link from "next/link";
 import { MobileMenu } from "./mobile-menu";
@@ -59,7 +59,14 @@ export default async function Header() {
 
               {/* New Post + Profile */}
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <NewPostModal />
+                <NewPostModal
+                  trigger={
+                    <button className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all transform hover:scale-105 flex items-center">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Post
+                    </button>
+                  }
+                />
                 <Link href={`/profile/${session.user.id}`}>
                   <Image
                     src={session.user.image || ""}
