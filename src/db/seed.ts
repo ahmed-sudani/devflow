@@ -1,5 +1,12 @@
 import { eq } from "drizzle-orm";
-import { users, posts, postComments, postLikes, followers } from "./schema";
+import {
+  users,
+  posts,
+  postComments,
+  postLikes,
+  followers,
+  userSettings,
+} from "./schema";
 import { db } from "@/lib/db";
 
 // Sample data arrays
@@ -209,6 +216,12 @@ export async function seedDatabase() {
       .values(sampleUsers)
       .returning();
     console.log(`✅ Created ${insertedUsers.length} users`);
+
+    //create default user settings
+    console.log("👥 Creating default users settings...");
+    const usersId = insertedUsers.map(({ id }) => ({ userId: id }));
+    await db.insert(userSettings).values(usersId);
+    console.log(`✅ Created ${insertedUsers.length} default users settings`);
 
     // Create follower relationships
     console.log("🤝 Creating follower relationships...");
