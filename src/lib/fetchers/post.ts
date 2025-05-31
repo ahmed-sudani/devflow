@@ -13,7 +13,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
-import { PostWithUser } from "@/types";
+import { CommentWithUser, PostWithUser } from "@/types";
 
 export type SuggestedUser = {
   id: string;
@@ -21,20 +21,6 @@ export type SuggestedUser = {
   username: string | null;
   image: string | null;
   followersCount: number;
-};
-
-export type PostComment = {
-  id: number;
-  content: string;
-  createdAt: Date;
-  parentId: number | null;
-  user: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    image: string | null;
-  };
-  replies?: PostComment[];
 };
 
 export async function getPosts(
@@ -229,7 +215,9 @@ export async function getSuggestedUsers(): Promise<SuggestedUser[]> {
   }
 }
 
-export async function getPostComments(postId: number): Promise<PostComment[]> {
+export async function getPostComments(
+  postId: number
+): Promise<CommentWithUser[]> {
   try {
     const result = await db
       .select({
@@ -248,10 +236,10 @@ export async function getPostComments(postId: number): Promise<PostComment[]> {
       .orderBy(asc(postComments.createdAt)); // Changed to ascending for proper tree building
 
     // First pass: Create all comment objects
-    const commentMap = new Map<number, PostComment>();
+    const commentMap = new Map<number, CommentWithUser>();
 
     result.forEach((comment) => {
-      const commentObj: PostComment = {
+      const commentObj: CommentWithUser = {
         id: comment.id,
         content: comment.content,
         createdAt: comment.createdAt,
@@ -268,7 +256,7 @@ export async function getPostComments(postId: number): Promise<PostComment[]> {
     });
 
     // Second pass: Build the tree structure
-    const rootComments: PostComment[] = [];
+    const rootComments: CommentWithUser[] = [];
 
     result.forEach((comment) => {
       const commentObj = commentMap.get(comment.id)!;
