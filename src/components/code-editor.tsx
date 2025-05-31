@@ -1,9 +1,9 @@
+import { detectLanguage } from "@/lib/detect-code-language";
+import { prettifyCode } from "@/lib/prettify-code";
+import { ChevronDown, Wand2 } from "lucide-react";
 import React, { memo, useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { ChevronDown, Wand2 } from "lucide-react";
-import { prettifyCode } from "@/lib/prettify-code";
-import { detectLanguage } from "@/lib/detect-code-language";
 
 // Supported languages by react-syntax-highlighter
 const SUPPORTED_LANGUAGES = [
@@ -49,13 +49,17 @@ const SUPPORTED_LANGUAGES = [
 
 interface CodeEditorProps {
   onChange: (code: string, language: string) => void;
+  value?: string | null;
+  language?: string | null;
 }
 
 export const CodeEditor = memo(function CodeEditor({
   onChange,
+  language,
+  value,
 }: CodeEditorProps) {
-  const [code, setCode] = useState<string>("");
-  const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [code, setCode] = useState<string>(value || "");
+  const [selectedLanguage, setSelectedLanguage] = useState(language || "");
   const [isAuto, setIsAuto] = useState(true);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
