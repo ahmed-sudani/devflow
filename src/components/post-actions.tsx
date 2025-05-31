@@ -1,12 +1,7 @@
 "use client";
 
 import { useLoginModal } from "@/hooks/use-login-modal";
-import {
-  addComment,
-  togglePostBookmark,
-  togglePostLike,
-} from "@/lib/actions/post";
-import { getPostComments } from "@/lib/fetchers/post";
+import { togglePostBookmark, togglePostLike } from "@/lib/actions/post";
 import { CommentWithUser, PostWithUser } from "@/types";
 import {
   ChevronDown,
@@ -21,6 +16,7 @@ import React, { useState, useTransition } from "react";
 import PostShare from "./post-share";
 import PostComment from "./post-comment";
 import { LoginModal } from "./login-modal";
+import { addComment, getPostComments } from "@/lib/actions/comment";
 
 type PostActionsProps = { post: PostWithUser };
 

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { PostsList } from "@/components/posts-list";
-import { getPosts, searchUsers } from "@/lib/actions/post";
+import { getPosts } from "@/lib/actions/post";
+import { searchUsers } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";
 import { PostWithUser, User as UserType } from "@/types";
 import { FileText, Hash, Search, User } from "lucide-react";

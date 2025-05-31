@@ -1,11 +1,7 @@
 import { auth } from "@/auth";
 import SocialMediaHome from "@/components/social-media-home";
-import { getPosts } from "@/lib/actions/post";
-import {
-  getSuggestedUsers,
-  getTrendingTagsWithTimeframe,
-} from "@/lib/fetchers/post";
-import { getCurrentUser } from "@/lib/fetchers/user";
+import { getPosts, getTrendingTagsWithTimeframe } from "@/lib/actions/post";
+import { getCurrentUser, getSuggestedUsers } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";
 
 export default async function HomePage() {

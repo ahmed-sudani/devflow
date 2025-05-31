@@ -1,6 +1,6 @@
 "use client";
 
-import { addComment, deleteComment } from "@/lib/actions/post";
+import { addComment, deleteComment } from "@/lib/actions/comment";
 import { CommentWithUser, Post } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { Reply, Trash2 } from "lucide-react";

@@ -5,8 +5,9 @@ import { Search, User, FileText, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getPosts, searchUsers } from "@/lib/actions/post";
+import { getPosts } from "@/lib/actions/post";
 import { PostWithUser, User as TypeUser } from "@/types";
+import { searchUsers } from "@/lib/actions/user";
 
 interface SearchResult {
   users: TypeUser[];

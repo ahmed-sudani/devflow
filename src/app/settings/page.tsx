@@ -1,8 +1,7 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import SettingsClient from "@/components/settings-client";
-import { getCurrentUser } from "@/lib/fetchers/user";
-import { getUserSettings } from "@/lib/actions/user";
+import { getCurrentUser, getUserSettings } from "@/lib/actions/user";
+import { redirect } from "next/navigation";
 
 export default async function SettingsPage() {
   const session = await auth();

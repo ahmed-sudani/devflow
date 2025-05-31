@@ -95,3 +95,46 @@ export interface NotificationSettings {
   followNotifications: boolean;
   mentionNotifications: boolean;
 }
+
+export interface SearchFilters {
+  type: "all" | "users" | "posts" | "tags";
+  sortBy: "relevance" | "recent" | "popular";
+  dateRange: "all" | "day" | "week" | "month" | "year";
+  userId?: string;
+  tags?: string[];
+}
+
+export interface SearchResult<T> {
+  success: boolean;
+  data: T[];
+  error?: string;
+  total?: number;
+  hasMore?: boolean;
+}
+
+// Define the User type for search results
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  username: string;
+  image: string | null;
+  badge: string | null;
+  followersCount: number;
+  followingCount: number;
+  createdAt: Date;
+}
+
+export type PostFilterOptions = {
+  userId?: string; // only posts by this user
+  limit?: number; // how many posts to return
+  offset?: number; // pagination
+  isBookmarked?: boolean; // only bookmarked by current user?
+  isFollowing?: boolean; // only from people you follow?
+  tags?: string[]; // must match at least one tag
+  sortBy?: "relevance" | "recent" | "popular";
+  dateRange?: "all" | "day" | "week" | "month" | "year";
+  searchTerm?: string; // (optional) text to search in content/snippet
+};
+
+export type Comment = typeof postComments.$inferSelect;
+export type CommentWithReplies = Comment & { replies: CommentWithReplies[] };

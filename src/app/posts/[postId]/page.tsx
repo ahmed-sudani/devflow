@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { Post } from "@/components/post";
-import { getPostById } from "@/lib/fetchers/post";
+import { getPostById } from "@/lib/actions/post";
 import SessionProvider from "@/providers/session-provider";
 import { notFound } from "next/navigation";
 

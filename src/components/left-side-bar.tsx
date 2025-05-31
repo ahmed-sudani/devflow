@@ -1,6 +1,6 @@
 "use client";
 
-import { getTrendingTagsWithTimeframe } from "@/lib/fetchers/post";
+import { getTrendingTagsWithTimeframe } from "@/lib/actions/post";
 import { ApiResult, Timeframe, TrendingTag, User as UserType } from "@/types";
 import { Clock, Code, Settings, User, Zap } from "lucide-react";
 import Image from "next/image";

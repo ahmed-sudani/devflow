@@ -1,29 +1,11 @@
 "use server";
 
 import { auth } from "@/auth";
-import {
-  followers,
-  postBookmarks,
-  postComments,
-  postLikes,
-  posts,
-  users,
-} from "@/db/schema";
+import { followers, postBookmarks, postLikes, posts, users } from "@/db/schema";
 
 import { db } from "@/lib/db";
-import { PostWithUser } from "@/types";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gte,
-  ilike,
-  inArray,
-  isNotNull,
-  or,
-  sql,
-} from "drizzle-orm";
+import { PostFilterOptions, PostWithUser } from "@/types";
+import { and, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { revalidatePath, revalidateTag } from "next/cache";
 
 export interface CreatePostInput {
@@ -236,169 +218,6 @@ export async function togglePostLike(postId: number) {
   }
 }
 
-export async function addComment(
-  postId: number,
-  content: string,
-  parentId?: number
-) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      throw new Error("User not authenticated");
-    }
-
-    if (!content.trim()) {
-      throw new Error("Comment content is required");
-    }
-
-    const userId = session.user.id;
-
-    // Insert the comment
-    await db.insert(postComments).values({
-      userId,
-      postId,
-      content: content.trim(),
-      parentId,
-    });
-
-    // Increment comments count
-    await db
-      .update(posts)
-      .set({
-        commentsCount: sql`${posts.commentsCount} + 1`,
-      })
-      .where(eq(posts.id, postId));
-
-    revalidatePath("/");
-    return { success: true };
-  } catch (error) {
-    console.error("Error adding comment:", error);
-    return { success: false, error: "Failed to add comment" };
-  }
-}
-
-export async function deleteComment(commentId: number) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      throw new Error("User not authenticated");
-    }
-
-    const userId = session.user.id;
-
-    // Get the comment to check ownership and get postId
-    const comment = await db
-      .select()
-      .from(postComments)
-      .where(eq(postComments.id, commentId))
-      .limit(1);
-
-    if (comment.length === 0) {
-      throw new Error("Comment not found");
-    }
-
-    if (comment[0].userId !== userId) {
-      throw new Error("Not authorized to delete this comment");
-    }
-
-    const postId = comment[0].postId;
-
-    // Recursive function to get all child comment IDs
-    async function getAllChildCommentIds(parentId: number): Promise<number[]> {
-      const children = await db
-        .select({ id: postComments.id })
-        .from(postComments)
-        .where(eq(postComments.parentId, parentId));
-
-      let allChildIds: number[] = [];
-
-      for (const child of children) {
-        allChildIds.push(child.id);
-        // Recursively get children of this child
-        const grandChildren = await getAllChildCommentIds(child.id);
-        allChildIds = allChildIds.concat(grandChildren);
-      }
-
-      return allChildIds;
-    }
-
-    // Get all child comment IDs
-    const childCommentIds = await getAllChildCommentIds(commentId);
-
-    // Calculate total comments to delete (parent + children)
-    const totalCommentsToDelete = 1 + childCommentIds.length;
-
-    // Delete all child comments first
-    if (childCommentIds.length > 0) {
-      await db
-        .delete(postComments)
-        .where(inArray(postComments.id, childCommentIds));
-    }
-
-    // Delete the parent comment
-    await db.delete(postComments).where(eq(postComments.id, commentId));
-
-    // Update comments count (subtract total deleted comments)
-    await db
-      .update(posts)
-      .set({
-        commentsCount: sql`${posts.commentsCount} - ${totalCommentsToDelete}`,
-      })
-      .where(eq(posts.id, postId));
-
-    revalidatePath("/");
-    return { success: true, deletedCount: totalCommentsToDelete };
-  } catch (error) {
-    console.error("Error deleting comment:", error);
-    return { success: false, error: "Failed to delete comment" };
-  }
-}
-
-export async function getPostComments(postId: number) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.id) {
-      throw new Error("User not authenticated");
-    }
-
-    // Fetch all comments for this post
-    const rows = await db
-      .select()
-      .from(postComments)
-      .where(eq(postComments.postId, postId))
-      .orderBy(asc(postComments.createdAt));
-
-    // Build a nested comment tree
-    const lookup: Record<number, CommentWithReplies> = {};
-    const roots: CommentWithReplies[] = [];
-
-    rows.forEach((c) => {
-      lookup[c.id] = { ...c, replies: [] };
-    });
-
-    rows.forEach((c) => {
-      if (c.parentId) {
-        const parent = lookup[c.parentId];
-        if (parent) parent.replies.push(lookup[c.id]);
-      } else {
-        roots.push(lookup[c.id]);
-      }
-    });
-
-    return { success: true, comments: roots };
-  } catch (error) {
-    console.error("Error fetching comments:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to fetch comments",
-    };
-  }
-}
-
 export async function toggleUserFollowing(targetUserId: string) {
   try {
     const session = await auth();
@@ -542,140 +361,6 @@ export async function togglePostBookmark(postId: number) {
   } catch (error) {
     console.error("Error toggling bookmark:", error);
     return { success: false, error: "Failed to toggle bookmark" };
-  }
-}
-
-type Comment = typeof postComments.$inferSelect;
-type CommentWithReplies = Comment & { replies: CommentWithReplies[] };
-
-export interface SearchFilters {
-  type: "all" | "users" | "posts" | "tags";
-  sortBy: "relevance" | "recent" | "popular";
-  dateRange: "all" | "day" | "week" | "month" | "year";
-  userId?: string;
-  tags?: string[];
-}
-
-export interface SearchResult<T> {
-  success: boolean;
-  data: T[];
-  error?: string;
-  total?: number;
-  hasMore?: boolean;
-}
-
-// Define the User type for search results
-export interface UserSearchResult {
-  id: string;
-  name: string;
-  username: string;
-  image: string | null;
-  badge: string | null;
-  followersCount: number;
-  followingCount: number;
-  createdAt: Date;
-}
-
-export type PostFilterOptions = {
-  userId?: string; // only posts by this user
-  limit?: number; // how many posts to return
-  offset?: number; // pagination
-  isBookmarked?: boolean; // only bookmarked by current user?
-  isFollowing?: boolean; // only from people you follow?
-  tags?: string[]; // must match at least one tag
-  sortBy?: "relevance" | "recent" | "popular";
-  dateRange?: "all" | "day" | "week" | "month" | "year";
-  searchTerm?: string; // (optional) text to search in content/snippet
-};
-
-// Enhanced user search with filters
-export async function searchUsers(
-  query: string,
-  limit: number = 10,
-  offset: number = 0,
-  filters: Partial<SearchFilters> = {}
-): Promise<SearchResult<UserSearchResult>> {
-  if (!query || query.trim().length < 2) {
-    return {
-      success: false,
-      error: "Search query must be at least 2 characters long",
-      data: [],
-    };
-  }
-
-  const searchTerm = `%${query.trim()}%`;
-
-  try {
-    // Build the base query
-    const baseQuery = db
-      .select({
-        id: users.id,
-        name: users.name,
-        username: users.username,
-        image: users.image,
-        badge: users.badge,
-        followersCount: users.followersCount,
-        followingCount: users.followingCount,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(
-        or(
-          ilike(users.name, searchTerm),
-          ilike(users.username, searchTerm),
-          ilike(users.badge, searchTerm)
-        )
-      );
-
-    // Apply sorting and execute query
-    let results;
-    switch (filters.sortBy) {
-      case "recent":
-        results = await baseQuery
-          .orderBy(desc(users.createdAt))
-          .limit(limit)
-          .offset(offset);
-        break;
-      case "popular":
-        results = await baseQuery
-          .orderBy(desc(users.followersCount), asc(users.name))
-          .limit(limit)
-          .offset(offset);
-        break;
-      default:
-        results = await baseQuery
-          .orderBy(desc(users.followersCount), asc(users.name))
-          .limit(limit)
-          .offset(offset);
-    }
-
-    // Get total count for pagination
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(
-        or(
-          ilike(users.name, searchTerm),
-          ilike(users.username, searchTerm),
-          ilike(users.badge, searchTerm)
-        )
-      );
-
-    const total = totalResult[0]?.count || 0;
-
-    return {
-      success: true,
-      data: results,
-      total,
-      hasMore: offset + limit < total,
-    };
-  } catch (error) {
-    console.error("Error searching users:", error);
-    return {
-      success: false,
-      error: "Failed to search users",
-      data: [],
-    };
   }
 }
 
@@ -854,4 +539,143 @@ export async function getPosts(
     isLiked: r.isLiked,
     isBookmarked: r.isBookmarked,
   }));
+}
+
+export async function getPostById(postId: number) {
+  // 1) Authenticate and get current user
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  // 2) Build query
+  const result = await db
+    .select({
+      id: posts.id,
+      content: posts.content,
+      codeSnippet: posts.codeSnippet,
+      codeLanguage: posts.codeLanguage,
+      image: posts.image,
+      tags: posts.tags,
+      likesCount: posts.likesCount,
+      commentsCount: posts.commentsCount,
+      sharesCount: posts.sharesCount,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      userId: posts.userId,
+      userName: users.name,
+      userUsername: users.username,
+      userBadge: users.badge,
+      userImage: users.image,
+      isLiked: sql<boolean>`post_likes.user_id IS NOT NULL`.as("isLiked"),
+      isBookmarked: sql<boolean>`post_bookmarks.user_id IS NOT NULL`.as(
+        "isBookmarked"
+      ),
+      isFollowing: sql<boolean>`followers.follower_id IS NOT NULL`.as(
+        "isFollowing"
+      ),
+    })
+    .from(posts)
+    .innerJoin(users, eq(posts.userId, users.id))
+    .leftJoin(
+      postLikes,
+      and(
+        eq(postLikes.postId, posts.id),
+        eq(postLikes.userId, currentUserId ?? "")
+      )
+    )
+    .leftJoin(
+      postBookmarks,
+      and(
+        eq(postBookmarks.postId, posts.id),
+        eq(postBookmarks.userId, currentUserId ?? "")
+      )
+    )
+    .leftJoin(
+      followers,
+      and(
+        eq(followers.followerId, currentUserId ?? ""),
+        eq(followers.followingId, posts.userId)
+      )
+    )
+    .where(eq(posts.id, postId));
+
+  // 3) Handle not found
+  const post = result[0];
+  if (!post) return null;
+
+  // 4) Return shaped data
+  return {
+    id: post.id,
+    content: post.content,
+    codeSnippet: post.codeSnippet,
+    codeLanguage: post.codeLanguage,
+    image: post.image,
+    tags: post.tags,
+    likesCount: post.likesCount ?? 0,
+    commentsCount: post.commentsCount ?? 0,
+    sharesCount: post.sharesCount ?? 0,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    user: {
+      id: post.userId,
+      name: post.userName,
+      username: post.userUsername,
+      badge: post.userBadge,
+      image: post.userImage,
+    },
+    isLiked: post.isLiked,
+    isBookmarked: post.isBookmarked,
+    isFollowing: post.isFollowing,
+  };
+}
+
+export async function getTrendingTagsWithTimeframe(
+  timeframe: "day" | "week" | "month" = "week",
+  limit: number = 10
+) {
+  try {
+    const intervalMap = {
+      day: "1 day",
+      week: "7 days",
+      month: "30 days",
+    };
+
+    const interval = intervalMap[timeframe];
+
+    const trendingTags = await db
+      .select({
+        tag: sql<string>`unnest(${posts.tags})`.as("tag"),
+        count: sql<number>`count(*)`.as("count"),
+        avgEngagement:
+          sql<number>`avg(${posts.likesCount} + ${posts.commentsCount} + coalesce(${posts.sharesCount}, 0))`.as(
+            "avg_engagement"
+          ),
+      })
+      .from(posts)
+      .where(
+        sql`
+        ${posts.tags} is not null 
+        and array_length(${posts.tags}, 1) > 0 
+        and ${posts.createdAt} >= now() - interval '${sql.raw(interval)}'
+      `
+      )
+      .groupBy(sql`unnest(${posts.tags})`)
+      .orderBy(
+        sql`count(*) desc, avg(${posts.likesCount} + ${posts.commentsCount} + coalesce(${posts.sharesCount}, 0)) desc`
+      )
+      .limit(limit);
+
+    return {
+      success: true,
+      data: trendingTags,
+      timeframe,
+    };
+  } catch (error) {
+    console.error("Error fetching trending tags with timeframe:", error);
+    return {
+      success: false,
+      error: "Failed to fetch trending tags",
+      data: [],
+      timeframe,
+    };
+  }
 }

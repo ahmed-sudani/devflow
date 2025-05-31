@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import ProfileClient from "@/components/profile-client";
-import { getUserPosts } from "@/lib/fetchers/post";
-import { getUserProfile } from "@/lib/fetchers/user"; // Need to create these
+import { getPosts } from "@/lib/actions/post";
+import { getUserProfile } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";
 
 interface ProfilePageProps {
@@ -16,7 +16,7 @@ export default async function ProfilePage(props: ProfilePageProps) {
 
   const [profileUser, userPosts] = await Promise.all([
     getUserProfile(params.userId),
-    getUserPosts(params.userId),
+    getPosts({ userId: params.userId }),
   ]);
 
   if (!profileUser) {
