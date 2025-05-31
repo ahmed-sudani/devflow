@@ -1,0 +1,1 @@
+ALTER TABLE "user" ALTER COLUMN "followers_count" DROP NOT NULL;
