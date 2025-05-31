@@ -3,7 +3,7 @@
 import { useLoginModal } from "@/hooks/use-login-modal";
 import { toggleUserFollowing } from "@/lib/actions/post";
 import { SuggestedUser } from "@/types";
-import { CheckCircle, Coffee } from "lucide-react";
+import { Coffee } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { toast } from "react-toastify";
@@ -37,14 +37,8 @@ export function RightSidebar({ initialSuggestedUsers }: RightSidebarProps) {
               ? `You followed @${userName}`
               : `You unfollowed @${userName}`,
             {
-              autoClose: 3000,
-              theme: "dark",
-              className:
-                "bg-bg-secondary rounded-lg border border-border-primary text-text-primary",
+              hideProgressBar: false,
               progressClassName: "bg-primary",
-              icon() {
-                return <CheckCircle className="text-primary" />;
-              },
               onClose() {
                 // If followed, remove from list after 3 seconds
                 if (isFollowing) {

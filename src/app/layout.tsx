@@ -1,12 +1,11 @@
-import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
-import type { Metadata } from "next";
-import { extractRouterConfig } from "uploadthing/server";
 import Header from "@/components/header"; // Adjust path if needed
 import { ourFileRouter } from "@/lib/uploadthing";
-import "./globals.css";
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import type { Metadata } from "next";
 import { ToastContainer } from "react-toastify";
-// import { auth } from "@/auth";
-// import SessionProvider from "@/providers/session-provider";
+import { extractRouterConfig } from "uploadthing/server";
+import "./globals.css";
+import ToastContainerIcon from "@/components/toast-container";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -25,7 +24,13 @@ export default async function RootLayout({
         <Header />
         <main>{children}</main>
         <div id="menu-root" />
-        <ToastContainer />
+        <ToastContainer
+          toastClassName="bg-bg-secondary rounded-lg border border-border-primary text-text-primary"
+          autoClose={3000}
+          hideProgressBar
+          theme="dark"
+          icon={ToastContainerIcon}
+        />
       </body>
     </html>
   );
