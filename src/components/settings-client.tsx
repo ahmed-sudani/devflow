@@ -6,40 +6,18 @@ import {
   updateUserProfile,
 } from "@/lib/actions/user";
 import {
-  ProfileFormData,
-  PrivacySettings,
   NotificationSettings,
+  PrivacySettings,
+  ProfileFormData,
+  UserSettings,
+  User as UserType,
 } from "@/types";
 import { Bell, Save, Shield, Upload, User, X } from "lucide-react";
 import Image from "next/image";
 import { useState, useTransition } from "react";
 
-interface CurrentUser {
-  id: string;
-  name: string | null;
-  username: string | null;
-  email: string | null;
-  image: string | null;
-  badge: string | null;
-  followersCount: number;
-  followingCount: number;
-}
-
-interface UserSettings {
-  profileVisibility: "public" | "private";
-  showEmail: boolean;
-  showFollowers: boolean;
-  allowMessages: boolean;
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  likeNotifications: boolean;
-  commentNotifications: boolean;
-  followNotifications: boolean;
-  mentionNotifications: boolean;
-}
-
 interface SettingsClientProps {
-  currentUser: CurrentUser;
+  currentUser: UserType;
   userSettings: UserSettings;
 }
 

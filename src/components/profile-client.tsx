@@ -45,7 +45,11 @@ export default function ProfileClient({
         const result = await toggleUserFollowing(userId);
         if (result.success) {
           setIsFollowing(!!result.following);
-          setFollowersCount((prev) => (result.following ? prev + 1 : prev - 1));
+          if (profileUser.followersCount) {
+            setFollowersCount((prev) =>
+              result.following ? prev! + 1 : prev! - 1
+            );
+          }
         }
       } catch (err) {
         console.error("Follow action failed", err);

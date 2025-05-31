@@ -21,7 +21,7 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
-  followersCount: integer("followers_count").notNull().default(0),
+  followersCount: integer("followers_count").default(0),
   followingCount: integer("following_count").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });

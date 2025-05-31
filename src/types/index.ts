@@ -55,7 +55,7 @@ export type SuggestedUser = {
   name: string | null;
   username: string | null;
   image: string | null;
-  followersCount: number;
+  followersCount: number | null;
 };
 
 export type Timeframe = "day" | "week" | "month";
@@ -119,7 +119,7 @@ export interface UserSearchResult {
   username: string;
   image: string | null;
   badge: string | null;
-  followersCount: number;
+  followersCount: number | null;
   followingCount: number;
   createdAt: Date;
 }
@@ -137,4 +137,16 @@ export type PostFilterOptions = {
 };
 
 export type Comment = typeof postComments.$inferSelect;
-export type CommentWithReplies = Comment & { replies: CommentWithReplies[] };
+
+export type UserSettings = {
+  profileVisibility: "public" | "private";
+  showEmail: boolean;
+  showFollowers: boolean;
+  allowMessages: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  likeNotifications: boolean;
+  commentNotifications: boolean;
+  followNotifications: boolean;
+  mentionNotifications: boolean;
+};

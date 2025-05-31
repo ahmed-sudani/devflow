@@ -3,13 +3,13 @@
 import { auth } from "@/auth";
 import { followers, users, userSettings } from "@/db/schema";
 import {
-  ProfileFormData,
-  PrivacySettings,
   NotificationSettings,
+  PrivacySettings,
+  ProfileFormData,
   SearchFilters,
   SearchResult,
-  UserSearchResult,
   SuggestedUser,
+  UserSearchResult,
 } from "@/types";
 import {
   and,
@@ -245,6 +245,7 @@ export async function searchUsers(
   offset: number = 0,
   filters: Partial<SearchFilters> = {}
 ): Promise<SearchResult<UserSearchResult>> {
+  // 1. Basic length check
   if (!query || query.trim().length < 2) {
     return {
       success: false,
@@ -253,10 +254,11 @@ export async function searchUsers(
     };
   }
 
+  const session = await auth();
+  const currentUserId = session?.user?.id ?? null;
   const searchTerm = `%${query.trim()}%`;
 
   try {
-    // Build the base query
     const baseQuery = db
       .select({
         id: users.id,
@@ -267,47 +269,67 @@ export async function searchUsers(
         followersCount: users.followersCount,
         followingCount: users.followingCount,
         createdAt: users.createdAt,
+        profileVisibility: userSettings.profileVisibility,
+        showFollowers: userSettings.showFollowers,
       })
       .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(
-        or(
-          ilike(users.name, searchTerm),
-          ilike(users.username, searchTerm),
-          ilike(users.badge, searchTerm)
+        and(
+          or(
+            ilike(users.name, searchTerm),
+            ilike(users.username, searchTerm),
+            ilike(users.badge, searchTerm)
+          ),
+          or(
+            eq(userSettings.profileVisibility, "public"),
+            eq(users.id, currentUserId ?? "") // allow your own private profile to show up
+          )
         )
       );
 
-    // Apply sorting and execute query
-    let results;
-    switch (filters.sortBy) {
-      case "recent":
-        results = await baseQuery
-          .orderBy(desc(users.createdAt))
-          .limit(limit)
-          .offset(offset);
-        break;
-      case "popular":
-        results = await baseQuery
-          .orderBy(desc(users.followersCount), asc(users.name))
-          .limit(limit)
-          .offset(offset);
-        break;
-      default:
-        results = await baseQuery
-          .orderBy(desc(users.followersCount), asc(users.name))
-          .limit(limit)
-          .offset(offset);
+    let rawResults;
+    if (filters.sortBy === "recent") {
+      rawResults = await baseQuery
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      // default to “popular” if nothing specified
+      rawResults = await baseQuery
+        .orderBy(desc(users.followersCount), asc(users.name))
+        .limit(limit)
+        .offset(offset);
     }
 
-    // Get total count for pagination
+    // 4. Clean up each row: hide follower count if showFollowers = false
+    const cleanedResults: UserSearchResult[] = rawResults.map((u) => ({
+      id: u.id,
+      name: u.name,
+      username: u.username,
+      image: u.image,
+      badge: u.badge,
+      createdAt: u.createdAt,
+      followingCount: u.followingCount,
+      followersCount: u.showFollowers ? u.followersCount || 0 : null,
+    }));
+
+    // 5. Get total count for pagination (apply the same privacy & search conditions)
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(
-        or(
-          ilike(users.name, searchTerm),
-          ilike(users.username, searchTerm),
-          ilike(users.badge, searchTerm)
+        and(
+          or(
+            ilike(users.name, searchTerm),
+            ilike(users.username, searchTerm),
+            ilike(users.badge, searchTerm)
+          ),
+          or(
+            eq(userSettings.profileVisibility, "public"),
+            eq(users.id, currentUserId ?? "")
+          )
         )
       );
 
@@ -315,7 +337,7 @@ export async function searchUsers(
 
     return {
       success: true,
-      data: results,
+      data: cleanedResults,
       total,
       hasMore: offset + limit < total,
     };
@@ -365,8 +387,8 @@ export async function getUserProfile(userId: string) {
     const session = await auth();
     const currentUserId = session?.user?.id;
 
-    // Fetch target user profile
-    const user = await db
+    // Fetch user + settings
+    const userData = await db
       .select({
         id: users.id,
         name: users.name,
@@ -376,13 +398,15 @@ export async function getUserProfile(userId: string) {
         followersCount: users.followersCount,
         followingCount: users.followingCount,
         createdAt: users.createdAt,
+        email: users.email,
+        showEmail: userSettings.showEmail,
       })
       .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(eq(users.id, userId))
       .limit(1);
 
-    const profile = user[0];
-
+    const profile = userData[0];
     if (!profile) return null;
 
     // Check if current user follows this user
@@ -398,13 +422,20 @@ export async function getUserProfile(userId: string) {
           )
         )
         .limit(1);
-
       isFollowing = followCheck.length > 0;
     }
 
     return {
-      ...profile,
+      id: profile.id,
+      name: profile.name,
+      username: profile.username,
+      badge: profile.badge,
+      image: profile.image,
+      followersCount: profile.followersCount,
+      followingCount: profile.followingCount,
+      createdAt: profile.createdAt,
       isFollowing,
+      email: profile.showEmail ? profile.email : null,
     };
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -417,43 +448,42 @@ export async function getSuggestedUsers(): Promise<SuggestedUser[]> {
     const session = await auth();
     const currentUserId = session?.user?.id;
 
-    const baseSelect = {
-      id: users.id,
-      name: users.name,
-      username: users.username,
-      image: users.image,
-      followersCount: users.followersCount,
-    };
-
-    const base = db.select(baseSelect).from(users);
-
-    const filtered = currentUserId
-      ? base
-          .leftJoin(
-            followers,
-            and(
-              eq(followers.followerId, currentUserId),
-              eq(followers.followingId, users.id)
-            )
-          )
-          .where(
-            and(
-              isNull(followers.followerId),
-              ne(users.id, currentUserId),
-              gt(users.followersCount, 0)
-            )
-          )
-      : base.where(gt(users.followersCount, 0));
-
-    // common ordering & limit
-    const rows = await filtered.orderBy(desc(users.followersCount)).limit(3);
+    const rows = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        username: users.username,
+        image: users.image,
+        followersCount: users.followersCount,
+        profileVisibility: userSettings.profileVisibility,
+        showFollowers: userSettings.showFollowers,
+      })
+      .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
+      .leftJoin(
+        followers,
+        and(
+          eq(followers.followerId, currentUserId ?? ""),
+          eq(followers.followingId, users.id)
+        )
+      )
+      .where(
+        and(
+          eq(userSettings.profileVisibility, "public"),
+          currentUserId ? isNull(followers.followerId) : undefined,
+          currentUserId ? ne(users.id, currentUserId) : undefined,
+          gt(users.followersCount, 0)
+        )
+      )
+      .orderBy(desc(users.followersCount))
+      .limit(3);
 
     return rows.map((u) => ({
       id: u.id,
       name: u.name,
       username: u.username,
       image: u.image,
-      followersCount: u.followersCount || 0,
+      followersCount: u.showFollowers ? u.followersCount || 0 : null,
     }));
   } catch (error) {
     console.error("Error fetching suggested users:", error);
