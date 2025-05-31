@@ -1,7 +1,14 @@
 "use server";
 
 import { auth } from "@/auth";
-import { followers, postBookmarks, postLikes, posts, users } from "@/db/schema";
+import {
+  followers,
+  postBookmarks,
+  postLikes,
+  posts,
+  users,
+  userSettings,
+} from "@/db/schema";
 
 import { db } from "@/lib/db";
 import { PostFilterOptions, PostWithUser } from "@/types";
@@ -367,7 +374,6 @@ export async function togglePostBookmark(postId: number) {
 export async function getPosts(
   opts: PostFilterOptions = {}
 ): Promise<PostWithUser[]> {
-  // 1) Auth
   const session = await auth();
   const currentUserId = session?.user?.id;
   const {
@@ -382,7 +388,7 @@ export async function getPosts(
     searchTerm,
   } = opts;
 
-  // 2) Base select + joins for user + interaction flags
+  // 1) Build the base query
   let q;
   q = db
     .select({
@@ -409,6 +415,7 @@ export async function getPosts(
     })
     .from(posts)
     .innerJoin(users, eq(posts.userId, users.id))
+    .innerJoin(userSettings, eq(userSettings.userId, users.id)) // <-- JOIN settings
     .leftJoin(
       postLikes,
       and(
@@ -424,7 +431,7 @@ export async function getPosts(
       )
     );
 
-  // 3) Add followers join if needed
+  // 2) Filter by following if needed
   if (isFollowing) {
     if (!currentUserId) return [];
     q = q.leftJoin(
@@ -436,32 +443,30 @@ export async function getPosts(
     );
   }
 
-  // 4) Build where conditions array
+  // 3) WHERE conditions
   const whereConditions = [];
 
-  // Filter by "only my bookmarks"
+  // Only posts from public users
+  whereConditions.push(eq(userSettings.profileVisibility, "public"));
+
   if (isBookmarked) {
     if (!currentUserId) return [];
     whereConditions.push(isNotNull(postBookmarks.userId));
   }
 
-  // Filter by "only from people I follow"
   if (isFollowing) {
     whereConditions.push(isNotNull(followers.followingId));
   }
 
-  // Filter by a specific user's posts
   if (userId) {
     whereConditions.push(eq(posts.userId, userId));
   }
 
-  // Filter by tags overlap
   if (tags && tags.length > 0) {
     const tagsArray = `{${tags.join(",")}}`;
     whereConditions.push(sql`${posts.tags} && ${tagsArray}`);
   }
 
-  // Full-text search (if provided)
   if (searchTerm && searchTerm.trim().length >= 2) {
     const term = `%${searchTerm.trim()}%`;
     whereConditions.push(
@@ -475,7 +480,6 @@ export async function getPosts(
     );
   }
 
-  // Date range filter
   if (dateRange !== "all") {
     const now = Date.now();
     const msIn = {
@@ -488,12 +492,11 @@ export async function getPosts(
     whereConditions.push(gte(posts.createdAt, threshold));
   }
 
-  // 5) Apply all where conditions at once
   if (whereConditions.length > 0) {
     q = q.where(and(...whereConditions));
   }
 
-  // 6) Sorting
+  // 4) Sorting
   switch (sortBy) {
     case "recent":
       q = q.orderBy(desc(posts.createdAt));
@@ -503,20 +506,20 @@ export async function getPosts(
       break;
     case "relevance":
       if (searchTerm && searchTerm.trim().length >= 2) {
-        // If you have a full-text index, replace this with ts_rank or similarity()
         q = q.orderBy(desc(posts.likesCount), desc(posts.createdAt));
       } else {
-        // fallback
         q = q.orderBy(desc(posts.createdAt));
       }
       break;
   }
 
-  // 7) Pagination
+  // 5) Pagination
   q = q.limit(limit).offset(offset);
 
-  // 8) Execute + map to PostWithUser
+  // 6) Execute query
   const rows = await q;
+
+  // 7) Format result
   return rows.map((r) => ({
     id: r.id,
     content: r.content,
@@ -542,11 +545,9 @@ export async function getPosts(
 }
 
 export async function getPostById(postId: number) {
-  // 1) Authenticate and get current user
   const session = await auth();
   const currentUserId = session?.user?.id;
 
-  // 2) Build query
   const result = await db
     .select({
       id: posts.id,
@@ -572,9 +573,11 @@ export async function getPostById(postId: number) {
       isFollowing: sql<boolean>`followers.follower_id IS NOT NULL`.as(
         "isFollowing"
       ),
+      profileVisibility: userSettings.profileVisibility,
     })
     .from(posts)
     .innerJoin(users, eq(posts.userId, users.id))
+    .innerJoin(userSettings, eq(userSettings.userId, users.id))
     .leftJoin(
       postLikes,
       and(
@@ -596,13 +599,20 @@ export async function getPostById(postId: number) {
         eq(followers.followingId, posts.userId)
       )
     )
-    .where(eq(posts.id, postId));
+    .where(
+      and(
+        eq(posts.id, postId),
+        or(
+          eq(userSettings.profileVisibility, "public"),
+          eq(posts.userId, currentUserId ?? ""),
+          sql<boolean>`followers.follower_id IS NOT NULL`
+        )
+      )
+    );
 
-  // 3) Handle not found
   const post = result[0];
   if (!post) return null;
 
-  // 4) Return shaped data
   return {
     id: post.id,
     content: post.content,
