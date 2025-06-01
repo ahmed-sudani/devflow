@@ -9,6 +9,7 @@ import {
   SearchFilters,
   SearchResult,
   SuggestedUser,
+  User,
   UserSearchResult,
 } from "@/types";
 import {
@@ -18,6 +19,7 @@ import {
   eq,
   gt,
   ilike,
+  inArray,
   isNull,
   ne,
   or,
@@ -487,6 +489,32 @@ export async function getSuggestedUsers(): Promise<SuggestedUser[]> {
     }));
   } catch (error) {
     console.error("Error fetching suggested users:", error);
+    return [];
+  }
+}
+
+export async function getUserProfiles(userIds: string[]): Promise<User[]> {
+  try {
+    if (userIds.length === 0) return [];
+
+    const userProfiles = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        username: users.username,
+        image: users.image,
+        email: users.email,
+        badge: users.badge,
+        createdAt: users.createdAt,
+        followersCount: users.followersCount,
+        followingCount: users.followingCount,
+      })
+      .from(users)
+      .where(inArray(users.id, userIds));
+
+    return userProfiles;
+  } catch (error) {
+    console.error("Error fetching user profiles:", error);
     return [];
   }
 }
