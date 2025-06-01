@@ -9,7 +9,8 @@
     "lint": "next lint",
     "migration:generate": "drizzle-kit generate",
     "migration:migrate": "drizzle-kit migrate",
-    "seed": "tsx src/db/seed.ts"
+    "seed": "tsx src/db/seed.ts",
+    "firebase": "tsx ts-firebase.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.9.1",
@@ -23,6 +24,8 @@
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.43.1",
+    "firebase": "^11.8.1",
+    "firebase-admin": "^13.4.0",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.511.0",
     "next": "15.1.8",
