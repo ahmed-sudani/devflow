@@ -1,10 +1,11 @@
-import { Terminal, Home, Bell, Mail, Search, Plus } from "lucide-react";
-import SignIn from "./signin";
-import Image from "next/image";
-import NewPostModal from "./post-modal";
 import { auth } from "@/auth";
+import { Bell, Home, Plus, Search, Terminal } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { MobileMenu } from "./mobile-menu";
+import MailButton from "./mail";
+import MobileMenu from "./mobile-menu";
+import NewPostModal from "./post-modal";
+import SignIn from "./signin";
 
 export default async function Header() {
   const session = await auth();
@@ -44,9 +45,7 @@ export default async function Header() {
                 <button className="hover:text-primary transition-colors">
                   <Bell className="w-5 h-5 lg:w-6 lg:h-6 text-text-secondary hover:text-primary transition-colors cursor-pointer" />
                 </button>
-                <button className="hover:text-primary transition-colors">
-                  <Mail className="w-5 h-5 lg:w-6 lg:h-6 text-text-secondary hover:text-primary transition-colors cursor-pointer" />
-                </button>
+                <MailButton />
               </nav>
 
               {/* Search Icon for Mobile/Tablet */}
@@ -79,7 +78,7 @@ export default async function Header() {
               </div>
 
               {/* Mobile Menu Button */}
-              <MobileMenu session={session} />
+              <MobileMenu />
             </div>
           ) : (
             <div className="flex items-center space-x-3">

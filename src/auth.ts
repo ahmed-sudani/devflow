@@ -3,6 +3,8 @@ import GithubProvider from "next-auth/providers/github";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
 import { accounts, sessions, users, userSettings } from "./db/schema";
+import { ensureFirebaseUser } from "./lib/firebase/admin";
+import { User } from "./types";
 
 export const authOptions: NextAuthConfig = {
   adapter: DrizzleAdapter(db, {
@@ -51,9 +53,48 @@ export const authOptions: NextAuthConfig = {
           // All other fields will use their default values from the schema
         });
         console.log(`Default settings created for user: ${user.id}`);
+
+        await ensureFirebaseUser({
+          uid: user.id,
+          email: user.email,
+          displayName: user.name,
+          photoURL: user.image,
+        });
+
+        console.log(
+          `Default settings and Firebase user created for: ${user.id}`
+        );
       } catch (error) {
-        console.error("Error creating default user settings:", error);
+        console.error(
+          "Error creating default user settings or Firebase user:",
+          error
+        );
       }
+    },
+    signIn: async ({ user }) => {
+      // Sync user data with Firebase on each sign in
+      if (user.id) {
+        try {
+          await ensureFirebaseUser({
+            uid: user.id,
+            email: user.email,
+            displayName: user.name,
+            photoURL: user.image,
+          });
+        } catch (error) {
+          console.error("Error syncing user with Firebase:", error);
+        }
+      }
+    },
+  },
+  callbacks: {
+    session: async ({ session, user }) => {
+      if (session?.user && user?.id) {
+        session.user.id = user.id;
+        // Add any additional user data to session if needed
+        session.user.username = (user as unknown as User).username;
+      }
+      return session;
     },
   },
 };

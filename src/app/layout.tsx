@@ -6,6 +6,10 @@ import { ToastContainer } from "react-toastify";
 import { extractRouterConfig } from "uploadthing/server";
 import "./globals.css";
 import ToastContainerIcon from "@/components/toast-container";
+import { ChatProvider } from "@/contexts/chat-context";
+import SessionProvider from "@/providers/session-provider";
+import { auth } from "@/auth";
+import { ChatManager } from "@/components/chat/chat-manager";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -17,20 +21,26 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="en">
       <body className="min-h-screen bg-gray-900 text-gray-100">
-        <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
-        <Header />
-        <main>{children}</main>
-        <div id="menu-root" />
-        <ToastContainer
-          toastClassName="bg-bg-secondary rounded-lg border border-border-primary text-text-primary"
-          autoClose={3000}
-          hideProgressBar
-          theme="dark"
-          icon={ToastContainerIcon}
-        />
+        <SessionProvider session={session}>
+          <ChatProvider>
+            <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
+            <Header />
+            <main>{children}</main>
+            <div id="menu-root" />
+            <ToastContainer
+              toastClassName="bg-bg-secondary rounded-lg border border-border-primary text-text-primary"
+              autoClose={3000}
+              hideProgressBar
+              theme="dark"
+              icon={ToastContainerIcon}
+            />
+            <ChatManager />
+          </ChatProvider>
+        </SessionProvider>
       </body>
     </html>
   );

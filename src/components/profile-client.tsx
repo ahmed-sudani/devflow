@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import {
   Calendar,
   Code,
+  MessageCircle,
   MoreHorizontal,
   Settings,
   User,
@@ -27,6 +28,11 @@ interface ProfileClientProps {
   isOwnProfile: boolean;
 }
 
+// Updated section of your ProfileClient component
+// Add this import at the top
+import { useChat } from "@/contexts/chat-context";
+
+// Replace the Message button section with this updated version:
 export default function ProfileClient({
   profileUser,
   userPosts,
@@ -38,6 +44,7 @@ export default function ProfileClient({
     profileUser.followersCount
   );
   const { isOpen, action, requireAuth, closeModal } = useLoginModal();
+  const { startConversation } = useChat(); // Add this line
 
   const handleFollow = async (userId: string, userName: string) => {
     requireAuth(`follow @${userName}`, async () => {
@@ -54,6 +61,13 @@ export default function ProfileClient({
       } catch (err) {
         console.error("Follow action failed", err);
       }
+    });
+  };
+
+  // Add this function
+  const handleMessageClick = () => {
+    requireAuth(`message ${profileUser.name}`, async () => {
+      await startConversation(profileUser.id);
     });
   };
 
@@ -114,6 +128,13 @@ export default function ProfileClient({
                   ) : (
                     <>
                       <button
+                        onClick={handleMessageClick}
+                        className="flex items-center space-x-2 px-4 py-2 bg-bg-tertiary border border-border-secondary rounded-md hover:bg-bg-quaternary transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Message</span>
+                      </button>
+                      <button
                         onClick={() =>
                           handleFollow(
                             profileUser.id,
@@ -146,7 +167,7 @@ export default function ProfileClient({
                 </div>
               </div>
 
-              {/* Stats */}
+              {/* Stats section remains the same... */}
               <div className="flex items-center space-x-6 mt-4">
                 <div className="text-center">
                   <p className="text-xl font-bold text-text-primary">
@@ -177,6 +198,7 @@ export default function ProfileClient({
           </div>
         </div>
 
+        {/* Rest of the component remains the same... */}
         {/* Tabs */}
         <div className="bg-bg-secondary rounded-lg border border-border-primary mb-6 shadow-md">
           <div className="flex border-b border-border-primary">

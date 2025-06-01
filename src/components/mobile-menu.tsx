@@ -1,136 +1,40 @@
+// components/mobile-menu.tsx - Updated version with chat
 "use client";
 
-import { Bell, Home, LogOut, Mail, Menu, User, X } from "lucide-react";
-import { Session } from "next-auth";
-import { signOut } from "next-auth/react";
-import Image from "next/image";
+import { useState } from "react";
+import { useChat } from "@/contexts/chat-context";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { Menu, X, Home, Bell, Mail, Settings, LogOut } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
 
-interface MobileMenuProps {
-  session: Session;
-}
-
-export function MobileMenu({ session }: MobileMenuProps) {
+export default function MobileMenu() {
+  const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const { setShowConversationsList, conversations } = useChat();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Calculate total unread messages
+  const unreadCount = conversations.reduce((total, conv) => {
+    const userUnread = session?.user?.id
+      ? conv.unreadCount?.[session.user.id] || 0
+      : 0;
+    return total + userUnread;
+  }, 0);
 
-  const toggleMenu = () => setIsOpen((prev) => !prev);
-  const closeMenu = () => setIsOpen(false);
+  const handleMailClick = () => {
+    setShowConversationsList(true);
+    setIsOpen(false);
+  };
 
-  const overlay = (
-    <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 md:hidden"
-        onClick={closeMenu}
-      />
-      {/* Drawer */}
-      <div
-        className={`fixed top-16 right-0 h-[calc(100vh-4rem)] w-64 bg-bg-secondary
-                    border-l border-border-primary transform transition-transform
-                    duration-300 ease-in-out z-50 md:hidden
-                    ${isOpen ? "translate-x-0" : "translate-x-full"}`}
-      >
-        <div
-          className={`fixed right-0 h-[calc(100vh-4rem)] w-64 bg-bg-secondary border-l border-border-primary transform transition-transform duration-300 ease-in-out z-50 md:hidden ${
-            isOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex flex-col h-full">
-            {/* User Info */}
-            <div className="p-4 border-b border-border-secondary">
-              <div className="flex items-center space-x-3">
-                <Image
-                  src={session.user?.image || ""}
-                  alt="Profile"
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-full"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
-                    {session.user?.name}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Links */}
-            <nav className="flex-1 py-4">
-              <div className="px-4 space-y-2">
-                <Link
-                  href="/"
-                  onClick={closeMenu}
-                  className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-bg-tertiary transition-colors text-text-primary"
-                >
-                  <Home className="w-5 h-5 text-primary" />
-                  <span>Home</span>
-                </Link>
-
-                <Link
-                  href={`/profile/${session.user?.id}`}
-                  onClick={closeMenu}
-                  className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-bg-tertiary transition-colors text-text-primary"
-                >
-                  <User className="w-5 h-5 text-text-secondary" />
-                  <span>Profile</span>
-                </Link>
-
-                <button
-                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-bg-tertiary transition-colors text-text-primary"
-                  onClick={() => {
-                    // Handle notifications
-                    closeMenu();
-                  }}
-                >
-                  <Bell className="w-5 h-5 text-text-secondary" />
-                  <span>Notifications</span>
-                </button>
-
-                <button
-                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-bg-tertiary transition-colors text-text-primary"
-                  onClick={() => {
-                    // Handle messages
-                    closeMenu();
-                  }}
-                >
-                  <Mail className="w-5 h-5 text-text-secondary" />
-                  <span>Messages</span>
-                </button>
-              </div>
-            </nav>
-
-            {/* Sign Out */}
-            <div className="p-4 border-t border-border-secondary">
-              <button
-                onClick={() => {
-                  signOut();
-                  closeMenu();
-                }}
-                className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors text-red-500"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  const handleSignOut = () => {
+    signOut();
+    setIsOpen(false);
+  };
 
   return (
-    <>
+    <div className="md:hidden">
       <button
-        onClick={toggleMenu}
-        className="md:hidden p-2 rounded-lg hover:bg-bg-tertiary transition-colors"
-        aria-label={isOpen ? "Close menu" : "Open menu"}
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
       >
         {isOpen ? (
           <X className="w-5 h-5 text-text-secondary" />
@@ -139,10 +43,59 @@ export function MobileMenu({ session }: MobileMenuProps) {
         )}
       </button>
 
-      {/* Mount portal only when DOM is ready */}
-      {mounted &&
-        isOpen &&
-        createPortal(overlay, document.getElementById("menu-root")!)}
-    </>
+      {isOpen && (
+        <div className="absolute top-16 right-4 w-64 bg-bg-secondary border border-border-primary rounded-lg shadow-lg z-40">
+          <div className="p-2">
+            <Link
+              href="/"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+            >
+              <Home className="w-5 h-5 text-text-secondary" />
+              <span className="text-text-primary">Home</span>
+            </Link>
+
+            <button className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors">
+              <Bell className="w-5 h-5 text-text-secondary" />
+              <span className="text-text-primary">Notifications</span>
+            </button>
+
+            <button
+              onClick={handleMailClick}
+              className="flex items-center justify-between w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <Mail className="w-5 h-5 text-text-secondary" />
+                <span className="text-text-primary">Messages</span>
+              </div>
+              {unreadCount > 0 && (
+                <span className="bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            <Link
+              href="/settings"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+            >
+              <Settings className="w-5 h-5 text-text-secondary" />
+              <span className="text-text-primary">Profile</span>
+            </Link>
+
+            <div className="border-t border-border-primary my-2"></div>
+
+            <button
+              onClick={handleSignOut}
+              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors text-left"
+            >
+              <LogOut className="w-5 h-5 text-text-secondary" />
+              <span className="text-text-primary">Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
