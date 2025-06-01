@@ -31,6 +31,8 @@ interface ProfileClientProps {
 // Updated section of your ProfileClient component
 // Add this import at the top
 import { useChat } from "@/contexts/chat-context";
+import { sendFollowNotification } from "@/lib/firebase/notifications-client";
+import { useSession } from "next-auth/react";
 
 // Replace the Message button section with this updated version:
 export default function ProfileClient({
@@ -38,6 +40,7 @@ export default function ProfileClient({
   userPosts,
   isOwnProfile,
 }: ProfileClientProps) {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<"posts" | "about">("posts");
   const [isFollowing, setIsFollowing] = useState(profileUser.isFollowing);
   const [followersCount, setFollowersCount] = useState(
@@ -52,6 +55,9 @@ export default function ProfileClient({
         const result = await toggleUserFollowing(userId);
         if (result.success) {
           setIsFollowing(!!result.following);
+          if (result.following) {
+            await sendFollowNotification(session!.user!, userId);
+          }
           if (profileUser.followersCount) {
             setFollowersCount((prev) =>
               result.following ? prev! + 1 : prev! - 1

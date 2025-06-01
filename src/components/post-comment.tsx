@@ -1,7 +1,7 @@
 "use client";
 
 import { addComment, deleteComment } from "@/lib/actions/comment";
-import { CommentWithUser, Post } from "@/types";
+import { CommentWithUser, PostWithUser } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { Reply, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -15,7 +15,7 @@ import React, {
 
 type PostCommentProps = {
   comment: CommentWithUser;
-  post: Pick<Post, "id">;
+  post: PostWithUser;
   depth: number;
   setCommentsCount: Dispatch<SetStateAction<number>>;
   fetchComments: () => Promise<void>;

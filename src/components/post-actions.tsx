@@ -1,7 +1,12 @@
 "use client";
 
 import { useLoginModal } from "@/hooks/use-login-modal";
+import { addComment, getPostComments } from "@/lib/actions/comment";
 import { togglePostBookmark, togglePostLike } from "@/lib/actions/post";
+import {
+  sendCommentNotification,
+  sendLikeNotification,
+} from "@/lib/firebase/notifications-client";
 import { CommentWithUser, PostWithUser } from "@/types";
 import {
   ChevronDown,
@@ -13,10 +18,9 @@ import {
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import React, { useState, useTransition } from "react";
-import PostShare from "./post-share";
-import PostComment from "./post-comment";
 import { LoginModal } from "./login-modal";
-import { addComment, getPostComments } from "@/lib/actions/comment";
+import PostComment from "./post-comment";
+import PostShare from "./post-share";
 
 type PostActionsProps = { post: PostWithUser };
 
@@ -62,6 +66,13 @@ const PostActions: React.FC<PostActionsProps> = ({ post }) => {
           setIsLiked(!newIsLiked);
           setLikesCount(likesCount);
         }
+        if (result.success && newIsLiked) {
+          await sendLikeNotification(
+            session!.user!,
+            post.user.id,
+            post.id.toString()
+          );
+        }
       });
     });
   };
@@ -81,6 +92,11 @@ const PostActions: React.FC<PostActionsProps> = ({ post }) => {
         setCommentText("");
         setShowComment(false);
         setCommentsCount((prev) => prev + 1);
+        await sendCommentNotification(
+          session!.user!,
+          post.user.id,
+          post.id.toString()
+        );
         if (showComments) {
           await fetchComments();
         }

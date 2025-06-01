@@ -1,16 +1,24 @@
-// components/mobile-menu.tsx - Updated version with chat
 "use client";
 
 import { useState } from "react";
-import { useChat } from "@/contexts/chat-context";
-import Link from "next/link";
-import { Menu, X, Home, Bell, Mail, Settings, LogOut } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  Menu as MenuIcon,
+  X as XIcon,
+  Home,
+  Bell,
+  Mail,
+  Settings,
+  LogOut,
+} from "lucide-react";
+import { useChat } from "@/contexts/chat-context";
 
 export default function MobileMenu() {
   const { data: session } = useSession();
-  const [isOpen, setIsOpen] = useState(false);
   const { setShowConversationsList, conversations } = useChat();
+  const [open, setOpen] = useState(false);
 
   // Calculate total unread messages
   const unreadCount = conversations.reduce((total, conv) => {
@@ -22,80 +30,113 @@ export default function MobileMenu() {
 
   const handleMailClick = () => {
     setShowConversationsList(true);
-    setIsOpen(false);
   };
 
   const handleSignOut = () => {
     signOut();
-    setIsOpen(false);
   };
 
   return (
     <div className="md:hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors"
-      >
-        {isOpen ? (
-          <X className="w-5 h-5 text-text-secondary" />
-        ) : (
-          <Menu className="w-5 h-5 text-text-secondary" />
-        )}
-      </button>
+      <DropdownMenu.Root open={open} onOpenChange={setOpen}>
+        <DropdownMenu.Trigger asChild>
+          <button className="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
+            {open ? (
+              <XIcon className="w-5 h-5 text-text-secondary" />
+            ) : (
+              <MenuIcon className="w-5 h-5 text-text-secondary" />
+            )}
+          </button>
+        </DropdownMenu.Trigger>
 
-      {isOpen && (
-        <div className="absolute top-16 right-4 w-64 bg-bg-secondary border border-border-primary rounded-lg shadow-lg z-40">
-          <div className="p-2">
-            <Link
-              href="/"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
-            >
-              <Home className="w-5 h-5 text-text-secondary" />
-              <span className="text-text-primary">Home</span>
-            </Link>
+        <DropdownMenu.Portal>
+          {/* Optional dark overlay */}
+          {/* <DropdownMenu.Overlay className="fixed inset-0 bg-black/30 z-30" /> */}
 
-            <button className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors">
-              <Bell className="w-5 h-5 text-text-secondary" />
-              <span className="text-text-primary">Notifications</span>
-            </button>
+          <DropdownMenu.Content
+            side="bottom"
+            align="end"
+            sideOffset={8}
+            className="w-64 bg-bg-secondary border border-border-primary rounded-lg shadow-lg z-40"
+          >
+            <div className="p-2 space-y-1">
+              {/* Home */}
+              <DropdownMenu.Item asChild>
+                <Link
+                  href="/"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+                >
+                  <Home className="w-5 h-5 text-text-secondary" />
+                  <span className="text-text-primary">Home</span>
+                </Link>
+              </DropdownMenu.Item>
 
-            <button
-              onClick={handleMailClick}
-              className="flex items-center justify-between w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-text-secondary" />
-                <span className="text-text-primary">Messages</span>
-              </div>
-              {unreadCount > 0 && (
-                <span className="bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
+              {/* Notifications */}
+              <DropdownMenu.Item asChild>
+                <Link
+                  href="/notifications"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+                >
+                  <Bell className="w-5 h-5 text-text-secondary" />
+                  <span className="text-text-primary">Notifications</span>
+                </Link>
+              </DropdownMenu.Item>
 
-            <Link
-              href="/settings"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
-            >
-              <Settings className="w-5 h-5 text-text-secondary" />
-              <span className="text-text-primary">Profile</span>
-            </Link>
+              {/* Messages */}
+              <DropdownMenu.Item asChild>
+                <button
+                  onClick={() => {
+                    handleMailClick();
+                    setOpen(false);
+                  }}
+                  className="flex items-center justify-between w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-5 h-5 text-text-secondary" />
+                    <span className="text-text-primary">Messages</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenu.Item>
 
-            <div className="border-t border-border-primary my-2"></div>
+              {/* Profile */}
+              <DropdownMenu.Item asChild>
+                <Link
+                  href="/settings"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors"
+                >
+                  <Settings className="w-5 h-5 text-text-secondary" />
+                  <span className="text-text-primary">Profile</span>
+                </Link>
+              </DropdownMenu.Item>
 
-            <button
-              onClick={handleSignOut}
-              className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors text-left"
-            >
-              <LogOut className="w-5 h-5 text-text-secondary" />
-              <span className="text-text-primary">Sign Out</span>
-            </button>
-          </div>
-        </div>
-      )}
+              {/* Divider */}
+              <div className="border-t border-border-primary my-2"></div>
+
+              {/* Sign Out */}
+              <DropdownMenu.Item asChild>
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setOpen(false);
+                  }}
+                  className="flex items-center space-x-3 w-full p-3 hover:bg-bg-tertiary rounded-lg transition-colors text-left"
+                >
+                  <LogOut className="w-5 h-5 text-text-secondary" />
+                  <span className="text-text-primary">Sign Out</span>
+                </button>
+              </DropdownMenu.Item>
+            </div>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }

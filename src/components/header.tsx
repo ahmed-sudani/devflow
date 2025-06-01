@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
-import { Bell, Home, Plus, Search, Terminal } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notifications-bell";
+import { Home, Plus, Search, Terminal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import MailButton from "./mail";
@@ -42,9 +43,7 @@ export default async function Header() {
                 <Link href="/" className="hover:text-primary transition-colors">
                   <Home className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
                 </Link>
-                <button className="hover:text-primary transition-colors">
-                  <Bell className="w-5 h-5 lg:w-6 lg:h-6 text-text-secondary hover:text-primary transition-colors cursor-pointer" />
-                </button>
+                <NotificationBell />
                 <MailButton />
               </nav>
 

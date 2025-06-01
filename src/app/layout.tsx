@@ -10,6 +10,7 @@ import { ChatProvider } from "@/contexts/chat-context";
 import SessionProvider from "@/providers/session-provider";
 import { auth } from "@/auth";
 import { ChatManager } from "@/components/chat/chat-manager";
+import { NotificationProvider } from "@/contexts/notification-context";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -27,17 +28,22 @@ export default async function RootLayout({
       <body className="min-h-screen bg-gray-900 text-gray-100">
         <SessionProvider session={session}>
           <ChatProvider>
-            <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
-            <Header />
-            <main>{children}</main>
-            <div id="menu-root" />
-            <ToastContainer
-              toastClassName="bg-bg-secondary rounded-lg border border-border-primary text-text-primary"
-              autoClose={3000}
-              hideProgressBar
-              theme="dark"
-              icon={ToastContainerIcon}
-            />
+            <NotificationProvider>
+              <NextSSRPlugin
+                routerConfig={extractRouterConfig(ourFileRouter)}
+              />
+              <Header />
+              <main>{children}</main>
+              <div id="menu-root" />
+              <ToastContainer
+                toastClassName="bg-bg-secondary rounded-lg border border-border-primary text-text-primary"
+                autoClose={3000}
+                hideProgressBar
+                theme="dark"
+                icon={ToastContainerIcon}
+              />
+            </NotificationProvider>
+
             <ChatManager />
           </ChatProvider>
         </SessionProvider>
