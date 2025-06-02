@@ -3,6 +3,11 @@ import SocialMediaHome from "@/components/social-media-home";
 import { getPosts, getTrendingTagsWithTimeframe } from "@/lib/actions/post";
 import { getCurrentUser, getSuggestedUsers } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Home | DevFlow",
+};
 
 export default async function HomePage() {
   const [session, currentUser, postRes, trendingTags, suggestedUsers] =

@@ -5,8 +5,13 @@ import { searchUsers } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";
 import { PostWithUser, User as UserType } from "@/types";
 import { FileText, Hash, Search, User } from "lucide-react";
+import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Search | DevFlow",
+};
 
 interface SearchFilters {
   type: "all" | "users" | "posts" | "tags";
