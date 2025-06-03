@@ -18,7 +18,7 @@ import {
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import React, { useState, useTransition } from "react";
-import { LoginModal } from "./login-modal";
+import { LoginModal } from "../login-modal";
 import PostComment from "./post-comment";
 import PostShare from "./post-share";
 

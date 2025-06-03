@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import MailButton from "./mail";
 import MobileMenu from "./mobile-menu";
-import NewPostModal from "./post-modal";
+import NewPostModal from "./post/post-modal";
 import SignIn from "./signin";
 
 export default async function Header() {

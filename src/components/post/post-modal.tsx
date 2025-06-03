@@ -7,7 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Code, Hash, Image as ImageIcon, Loader2, X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useState, useTransition } from "react";
-import CodeEditor from "./code-editor";
+import CodeEditor from "../code-editor";
 
 export default function PostModal({
   post,

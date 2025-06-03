@@ -2,7 +2,7 @@
 
 import { Bookmark, Clock, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { LoginModal } from "./login-modal";
+import { LoginModal } from "../login-modal";
 import { useLoginModal } from "@/hooks/use-login-modal";
 
 type FilterType = "recent" | "following" | "bookmarks";

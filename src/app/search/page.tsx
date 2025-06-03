@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { PostsList } from "@/components/posts-list";
+import { PostsList } from "@/components/post/posts-list";
 import { getPosts } from "@/lib/actions/post";
 import { searchUsers } from "@/lib/actions/user";
 import SessionProvider from "@/providers/session-provider";

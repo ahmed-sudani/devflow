@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import CodePreview from "./code-preview";
+import CodePreview from "../code-preview";
 import { PostWithUser } from "@/types";
 
 type PostContentProps = { post: PostWithUser };

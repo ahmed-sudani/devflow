@@ -18,7 +18,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { LoginModal } from "./login-modal";
-import { PostsList } from "./posts-list";
+import { PostsList } from "./post/posts-list";
 
 interface ProfileClientProps {
   profileUser: UserType & {

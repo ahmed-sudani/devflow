@@ -11,8 +11,8 @@ import {
 import { useEffect, useState } from "react";
 import { LeftSidebar } from "./left-side-bar";
 import Loader from "./loader";
-import { PostFilter } from "./posts-filter";
-import { PostsList } from "./posts-list";
+import { PostFilter } from "./post/posts-filter";
+import { PostsList } from "./post/posts-list";
 import { RightSidebar } from "./right-side-bar";
 
 interface HomePageProps {
